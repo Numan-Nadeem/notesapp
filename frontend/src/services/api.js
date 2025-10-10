@@ -5,25 +5,65 @@ const api = axios.create({
   withCredentials: true,
 });
 
+// Flag to prevent infinite refresh attempts
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+
+  failedQueue = [];
+};
+
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    if (error.response?.status === 401) {
+    const originalRequest = error.config;
+
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      if (originalRequest.url?.includes("/auth/")) {
+        return Promise.reject(error);
+      }
+
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then(() => {
+            return api.request(originalRequest);
+          })
+          .catch((err) => {
+            return Promise.reject(err);
+          });
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
       try {
         await api.post("/auth/refresh");
-        return api.request(error.config);
+        processQueue(null);
+        return api.request(originalRequest);
       } catch (refreshError) {
-        console.warn("Session expired, redirecting to login...", refreshError);
-        if (window.location.pathname !== "/login") {
-          window.location.href = "/login";
-        }
+        processQueue(refreshError);
+        localStorage.removeItem("userData");
+        window.dispatchEvent(new CustomEvent("auth-expired"));
+
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
       }
     }
     return Promise.reject(error);
   }
 );
 
-// API endpoints
 export const checkhealth = async () => api.get("/");
 
 export const login = async (formData) => {
@@ -63,8 +103,15 @@ export const createNote = async (noteData) => {
   }
 };
 
-export const updateNote = async (id, noteData) =>
-  api.put(`/notes/${id}`, noteData);
+export const updateNote = async (id, noteData) => {
+  try {
+    const response = await api.put(`/notes/${id}`, noteData);
+    return response;
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+};
 
 export const deleteNote = async (id) => {
   try {

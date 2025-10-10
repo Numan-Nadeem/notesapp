@@ -1,5 +1,7 @@
+import cloudinary from "../config/cloudinary.js";
 import { deleteImageFile } from "../middlewares/uploadMiddleware.js";
 import Note from "../model/notesModel.js";
+import path from "path";
 
 export const getAllNotes = async ({
   page = 1,
@@ -53,15 +55,33 @@ export const updateNote = async (id, user, role, data) => {
 export const deleteNote = async (id, user, role) => {
   let note;
 
-  if (role === "admin") note = await Note.findById(id);
-  else note = await Note.findOne({ _id: id, user });
-
-  if (note && note.images && note.images.length > 0) {
-    note.images.forEach((imagePath) => deleteImageFile(imagePath));
-  }
-
   if (role === "admin") {
-    return await Note.findByIdAndDelete(id);
+    note = await Note.findById(id);
+  } else {
+    note = await Note.findOne({ _id: id, user });
   }
-  return await Note.findByIdAndDelete({ _id: id, user });
+
+  if (!note) return null;
+
+  if (note.images && note.images.length > 0) {
+    for (const image of note.images) {
+      if (image.public_id) {
+        try {
+          await cloudinary.uploader.destroy(image.public_id);
+        } catch (err) {
+          console.error(
+            `❌ Failed to delete image ${image.public_id}:`,
+            err.message
+          );
+        }
+      }
+    }
+  }
+
+  const deletedNote =
+    role === "admin"
+      ? await Note.findByIdAndDelete(id)
+      : await Note.findOneAndDelete({ _id: id, user });
+
+  return deletedNote;
 };

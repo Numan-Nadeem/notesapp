@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { Suspense, useEffect, useState } from "react";
 import SpotlightCard from "./SpotlightCard";
 import {
   createNote,
@@ -9,12 +9,14 @@ import {
 import { FiEdit2, FiPaperclip, FiTrash, FiX } from "react-icons/fi";
 import { GoKebabHorizontal } from "react-icons/go";
 
+const LazyImage = React.lazy(() => import("./LazyImage.jsx"));
+
 const Notes = () => {
   const [notes, setNotes] = useState([]);
   const [newNote, setNewNote] = useState({
     title: "",
     content: "",
-    createdAt: "",
+    image: [],
   });
   const [showModal, setShowModal] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -22,7 +24,6 @@ const Notes = () => {
   const [isModalClosing, setIsModalClosing] = useState(false);
   const [hoveredNoteId, setHoveredNoteId] = useState(null);
   const [optionsNoteId, setOptionsNoteId] = useState(null);
-  const [imageFile, setImageFile] = useState([]);
 
   const handleAddNote = async (e) => {
     e.preventDefault();
@@ -37,16 +38,15 @@ const Notes = () => {
       formData.append("title", newNote.title);
       formData.append("content", newNote.content);
 
-      if (imageFile && imageFile.length > 0) {
-        imageFile.forEach((file) => formData.append("images", file));
+      if (newNote.image && newNote.image.length > 0) {
+        newNote.image.forEach((file) => formData.append("images", file));
       }
 
       const createdNote = await createNote(formData);
 
       if (createdNote) {
         setNotes((prev) => [createdNote, ...prev]);
-        setNewNote({ title: "", content: "" });
-        setImageFile([]);
+        setNewNote({ title: "", content: "", image: [] });
         closeModal();
       }
     } catch (error) {
@@ -56,35 +56,46 @@ const Notes = () => {
 
   const handleUpdateNote = async (e) => {
     e.preventDefault();
-    if (newNote.title.trim() && newNote.content.trim() && updateNoteId) {
-      try {
-        const noteData = {
-          title: newNote.title,
-          content: newNote.content,
-        };
+    if (!newNote.title.trim() || !newNote.content.trim() || !updateNoteId) {
+      console.warn("Please enter both title and content");
+      return;
+    }
 
-        await updateNote(updateNoteId, noteData);
+    try {
+      const formData = new FormData();
+      formData.append("title", newNote.title);
+      formData.append("content", newNote.content);
 
-        setNotes(
-          notes.map((note) =>
-            note._id === updateNoteId ? { ...note, ...noteData } : note
-          )
-        );
+      const existingImages = newNote.image.filter(
+        (img) => typeof img === "string"
+      );
+      const newImages = newNote.image.filter((img) => img instanceof File);
 
-        setNewNote({ title: "", content: "" });
-        closeModal();
-        setIsUpdating(false);
-        setUpdateNoteId(null);
-      } catch (error) {
-        console.error("Error updating note:", error);
+      formData.append("existingImages", JSON.stringify(existingImages));
+
+      if (newImages.length > 0) {
+        newImages.forEach((file) => formData.append("images", file));
       }
+
+      const response = await updateNote(updateNoteId, formData);
+
+      setNotes(
+        notes.map((note) => (note._id === updateNoteId ? response.data : note))
+      );
+
+      setNewNote({ title: "", content: "", image: [] });
+      closeModal();
+      setIsUpdating(false);
+      setUpdateNoteId(null);
+    } catch (error) {
+      console.error("Error updating note:", error);
     }
   };
 
-  const handleEditClick = (noteId, title, content) => {
+  const handleEditClick = (noteId, title, content, images) => {
     setIsUpdating(true);
     setUpdateNoteId(noteId);
-    setNewNote({ title, content });
+    setNewNote({ title, content, image: images.map((image) => image.url) });
     setShowModal(true);
   };
 
@@ -198,9 +209,9 @@ const Notes = () => {
                   placeholder="Enter note content"
                   required
                 ></textarea>
-                <div className="flex gap-4">
+                <div className="flex gap-4 max-sm:flex-col">
                   <label className="inline-block">
-                    <span className="flex items-center gap-2 bg-black/60 text-white px-6 py-2 rounded-xl hover:bg-gray-700 transition-colors font-semibold cursor-pointer">
+                    <span className="flex items-center justify-center gap-2 bg-black/60 text-white px-6 py-2 rounded-xl hover:bg-gray-700 transition-colors font-semibold cursor-pointer">
                       <FiPaperclip /> Upload Image
                     </span>
                     <input
@@ -210,52 +221,61 @@ const Notes = () => {
                       className="hidden"
                       onChange={(e) => {
                         const files = Array.from(e.target.files);
-                        setImageFile(files);
+                        setNewNote({ ...newNote, image: files });
                       }}
                     />
                   </label>
-                  {imageFile && imageFile.length > 0 && (
-                    <div className="flex gap-2 flex-wrap">
-                      {imageFile.map((image, idx) => (
-                        <div
-                          key={idx}
-                          className="relative group w-[5rem] h-[5rem]"
-                        >
-                          <img
-                            src={URL.createObjectURL(image)}
-                            alt={`Preview ${idx + 1}`}
-                            className="rounded-xl w-full h-full object-cover border border-neutral-700"
-                          />
+                  {newNote.image && newNote.image.length > 0 && (
+                    <Suspense fallback={<div>Loading preview...</div>}>
+                      <div className="flex gap-2 flex-wrap max-sm:grid max-sm:grid-cols-4">
+                        {newNote.image.map((image, idx) => {
+                          const imageUrl =
+                            image instanceof File
+                              ? URL.createObjectURL(image)
+                              : image;
 
-                          <div
-                            className="absolute inset-0 bg-black/60 rounded-xl flex items-center justify-center
-                     opacity-0 group-hover:opacity-100 transition-opacity duration-300 cursor-pointer"
-                            onClick={() => {
-                              const updated = imageFile.filter(
-                                (_, i) => i !== idx
-                              );
-                              setImageFile(updated);
-                            }}
-                          >
-                            <FiTrash className="text-xl text-red-400 transition-colors" />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                          return (
+                            <div
+                              key={idx}
+                              className="relative group w-[5rem] rounded-xl overflow-hidden border border-neutral-700"
+                            >
+                              <LazyImage
+                                idx={idx}
+                                imageUrl={imageUrl}
+                                maxHeight="4rem"
+                              />
+
+                              <div
+                                className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 
+              group-hover:opacity-100 transition-opacity duration-300 cursor-pointer"
+                                onClick={() => {
+                                  const updated = newNote.image.filter(
+                                    (_, i) => i !== idx
+                                  );
+                                  setNewNote({ ...newNote, image: updated });
+                                }}
+                              >
+                                <FiTrash className="text-xl text-red-400 transition-transform transform group-hover:scale-110" />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </Suspense>
                   )}
                 </div>
               </div>
-              <div className="flex gap-3 justify-end">
+              <div className="flex gap-3 justify-end max-sm:block">
                 <button
                   type="button"
                   onClick={closeModal}
-                  className="bg-gray-600 text-white px-6 py-2 rounded-xl hover:bg-gray-700 transition-colors font-semibold cursor-pointer"
+                  className="bg-gray-600 text-white px-6 py-2 rounded-xl hover:bg-gray-700 transition-colors font-semibold cursor-pointer max-sm:hidden"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="bg-blue-600 text-white px-6 py-2 rounded-xl hover:bg-blue-700 transition-colors font-semibold cursor-pointer"
+                  className="bg-blue-600 text-white px-6 py-2 rounded-xl hover:bg-blue-700 transition-colors font-semibold cursor-pointer max-sm:w-full max-sm:mt-2"
                 >
                   {isUpdating ? "Update Note" : "Save Note"}
                 </button>
@@ -284,7 +304,7 @@ const Notes = () => {
                 <h1 className="text-xl font-bold line-clamp-2">{note.title}</h1>
                 {hoveredNoteId === note._id && optionsNoteId !== note._id && (
                   <button
-                    className="absolute top-2 right-2 px-2 py-1 rounded-lg cursor-pointer transition-all duration-300 hover:bg-gray-600"
+                    className="absolute top-2 right-2 px-2 py-1 rounded-lg cursor-pointer transition-all duration-300 hover:bg-gray-600 max-sm:text-2xl"
                     onClick={(e) => {
                       e.stopPropagation();
                       setOptionsNoteId(note._id);
@@ -299,24 +319,29 @@ const Notes = () => {
                       isModalClosing
                         ? "scale-95 opacity-0"
                         : "scale-100 opacity-100 animate-bounce-in"
-                    }`}
+                    } max-sm:p-2`}
                   >
                     <button
-                      className="p-1 rounded-lg cursor-pointer transition-all duration-300 hover:bg-gray-600"
+                      className="p-1 rounded-lg cursor-pointer transition-all duration-300 hover:bg-gray-600 max-sm:text-xl "
                       onClick={() =>
-                        handleEditClick(note._id, note.title, note.content)
+                        handleEditClick(
+                          note._id,
+                          note.title,
+                          note.content,
+                          note.images || []
+                        )
                       }
                     >
                       <FiEdit2 />
                     </button>
                     <button
-                      className="p-1 rounded-lg cursor-pointer transition-all duration-300 hover:bg-red-600 hover:border-red-400"
+                      className="p-1 rounded-lg cursor-pointer transition-all duration-300 hover:bg-red-600 hover:border-red-400 max-sm:text-xl "
                       onClick={() => handleDeleteNote(note._id)}
                     >
                       <FiTrash />
                     </button>
                     <button
-                      className="p-1 rounded-lg cursor-pointer transition-all duration-300 hover:bg-gray-600"
+                      className="p-1 rounded-lg cursor-pointer transition-all duration-300 hover:bg-gray-600 max-sm:text-xl "
                       onClick={() => setOptionsNoteId(null)}
                       title="Close"
                     >
@@ -330,25 +355,14 @@ const Notes = () => {
               {note.images && note.images.length > 0 && (
                 <div className="grid grid-cols-3 gap-2 mb-5">
                   {note.images.map((image, idx) => {
-                    let imageUrl =
-                      typeof image === "string" ? image : image.url;
-                    imageUrl = imageUrl.replace(/\\/g, "/").replace(/^\/+/, "");
-                    const BASE_URL = "http://localhost:3000";
-                    imageUrl = `${BASE_URL}/uploads/${imageUrl
-                      .split("uploads/")
-                      .pop()}`;
-
                     return (
-                      <div
-                        key={idx}
-                        className="overflow-hidden rounded-xl border border-neutral-700"
-                      >
-                        <img
-                          src={imageUrl}
-                          alt={`Note Image ${idx + 1}`}
-                          className="w-full h-full object-cover"
+                      <Suspense key={idx}>
+                        <LazyImage
+                          idx={idx}
+                          imageUrl={image.url}
+                          maxHeight="5rem"
                         />
-                      </div>
+                      </Suspense>
                     );
                   })}
                 </div>

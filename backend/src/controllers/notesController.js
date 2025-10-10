@@ -1,5 +1,9 @@
+import cloudinary from "../config/cloudinary.js";
 import { deleteImageFile } from "../middlewares/uploadMiddleware.js";
 import * as notesService from "../services/notesService.js";
+import Note from "../model/notesModel.js"; // Add this import
+import path from "path";
+import fs from "fs";
 
 export const getNotes = async (req, res, next) => {
   try {
@@ -20,44 +24,123 @@ export const getNotes = async (req, res, next) => {
 export const createNote = async (req, res, next) => {
   try {
     const { title, content } = req.body;
-    const images = req.files ? req.files.map((file) => file.path) : [];
+    let imageUrls = [];
+
+    if (req.files && req.files.length > 0) {
+      for (const file of req.files) {
+        const result = await cloudinary.uploader.upload(file.path, {
+          resource_type: "image",
+          transformation: [
+            {
+              width: 1200,
+              crop: "limit",
+              quality: "auto",
+              fetch_format: "auto",
+            },
+          ],
+        });
+
+        imageUrls.push({
+          url: result.secure_url,
+          public_id: result.public_id,
+        });
+        fs.unlinkSync(file.path);
+      }
+    }
+
     const newNote = await notesService.createNewNote(
       title,
       content,
       req.user.id,
-      images
+      imageUrls
     );
+
     res.status(201).json(newNote);
   } catch (err) {
-    if (req.files) req.files.forEach((file) => deleteImageFile(file.path));
+    // Clean up local uploads in case of failure
+    if (req.files) {
+      req.files.forEach((file) => {
+        if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+      });
+    }
     next(err);
   }
 };
 
-export const updateNote = async (req, res, next) => {
+export const updateNote = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, content, keepExistingImages } = req.body;
-    const newImages = req.files ? req.files.map((file) => file.path) : [];
+    const { title, content, existingImages } = req.body;
 
-    const existingNote = notesService.getAllNotes({
-      page: 1,
-      limit: 1,
-      user: req.user.id,
-      role: req.user.role,
-    });
+    // Get the current note to compare images
+    const currentNote = await Note.findOne(
+      req.user.role === "admin" ? { _id: id } : { _id: id, user: req.user.id }
+    );
 
-    const note = existingNote.notes.find((n) => n._id.toString() === id);
-
-    const updateData = { title, content };
-
-    if (keepExistingImages === true && note && note.images)
-      updateData.images = [...note.images, newImages];
-    else {
-      if (note && note.images)
-        note.images.forEach((imageFile) => deleteImageFile(imageFile.path));
-      updateData.images = newImages;
+    if (!currentNote) {
+      return res.status(404).json({ error: "Note not found" });
     }
+
+    let keptImageUrls = [];
+    if (existingImages) {
+      try {
+        keptImageUrls = JSON.parse(existingImages);
+      } catch (e) {
+        keptImageUrls = [];
+      }
+    }
+
+    const keptImages = currentNote.images.filter((img) =>
+      keptImageUrls.includes(img.url)
+    );
+
+    const imagesToDelete = currentNote.images.filter(
+      (img) => !keptImageUrls.includes(img.url)
+    );
+
+    for (const image of imagesToDelete) {
+      if (image.public_id) {
+        try {
+          await cloudinary.uploader.destroy(image.public_id);
+          console.log(`✅ Deleted image ${image.public_id} from Cloudinary`);
+        } catch (err) {
+          console.error(
+            `❌ Failed to delete image ${image.public_id}:`,
+            err.message
+          );
+        }
+      }
+    }
+
+    let newImageUrls = [];
+
+    if (req.files && req.files.length > 0) {
+      for (const file of req.files) {
+        const result = await cloudinary.uploader.upload(file.path, {
+          resource_type: "image",
+          transformation: [
+            {
+              width: 1200,
+              crop: "limit",
+              quality: "auto",
+              fetch_format: "auto",
+            },
+          ],
+        });
+
+        newImageUrls.push({
+          url: result.secure_url,
+          public_id: result.public_id,
+        });
+        fs.unlinkSync(file.path);
+      }
+    }
+
+    const updateData = {
+      title,
+      content,
+      images: [...keptImages, ...newImageUrls], // Fixed: spread newImageUrls instead of wrapping in array
+    };
 
     const updatedNote = await notesService.updateNote(
       id,
@@ -65,14 +148,18 @@ export const updateNote = async (req, res, next) => {
       req.user.role,
       updateData
     );
-    if (!note) return res.status(404).json({ error: "Note not found" });
+    if (!updatedNote) return res.status(404).json({ error: "Note not found" });
 
-    res.json(note);
-  } catch (err) {
+    res.json(updatedNote);
+  } catch (error) {
+    console.error("Error updating note:", error);
+    // Clean up local uploads in case of failure
     if (req.files) {
-      req.files.forEach((file) => deleteImageFile(file.path));
+      req.files.forEach((file) => {
+        if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+      });
     }
-    next(err);
+    res.status(500).json({ error: error.message });
   }
 };
 

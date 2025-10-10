@@ -51,15 +51,18 @@ const Login = () => {
 
     try {
       const result = await login(formData);
-
-      if (result.data.user) {
+      if (result.data && result.data.user) {
         contextLogin(result.data.user);
         navigate("/", { replace: true });
       } else {
-        setError("Login failed");
+        setError("Login failed - Invalid response from server");
       }
     } catch (error) {
-      setError(error.response?.data?.error || "An unexpected error occurred");
+      if (error.response?.status === 401) {
+        setError("Invalid email or password");
+      } else {
+        setError(error.response?.data?.error || "An unexpected error occurred");
+      }
     } finally {
       setLoading(false);
     }
