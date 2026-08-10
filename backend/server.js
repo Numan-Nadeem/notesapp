@@ -1,22 +1,22 @@
 import express from "express";
+import cors from "cors";
+import cookieParser from "cookie-parser";
+import helmet from "helmet";
 import notesRoutes from "./src/routes/notes.js";
 import authRoutes from "./src/routes/auth.js";
 import adminRoutes from "./src/routes/admin.js";
 import { connectDB } from "./src/config/db.js";
 import { errorHandler, notFound } from "./src/middlewares/errorMiddleware.js";
-import dotenv from "dotenv";
-import cors from "cors";
-import cookieParser from "cookie-parser";
-import path from "path";
+import { config, validateEnv } from "./src/config/env.js";
 
-dotenv.configDotenv();
+validateEnv();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
+app.use(helmet());
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: config.clientOrigins,
     credentials: true,
   })
 );
@@ -24,9 +24,7 @@ app.use(
 app.use(express.json());
 app.use(cookieParser());
 
-app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
-
-app.get("/", (req, res) => res.send("Notes API is running..."));
+app.get("/", (req, res) => res.send("Notsify API is running..."));
 
 app.use("/notes", notesRoutes);
 app.use("/auth", authRoutes);
@@ -36,7 +34,9 @@ app.use(notFound);
 app.use(errorHandler);
 
 connectDB().then(() => {
-  app.listen(PORT, () =>
-    console.log(`Server running at http://localhost:${PORT}`)
+  app.listen(config.port, () =>
+    console.log(`Server running at http://localhost:${config.port}`)
   );
 });
+
+export default app;

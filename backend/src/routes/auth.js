@@ -5,11 +5,13 @@ import {
   refreshUser,
   signupUser,
 } from "../controllers/authController.js";
+import { authLimiter } from "../middlewares/rateLimit.js";
+import { validateLogin, validateSignup } from "../middlewares/validate.js";
 
 const router = express.Router();
 
-router.post("/signup", signupUser);
-router.post("/login", loginUser);
+router.post("/signup", authLimiter, validateSignup, signupUser);
+router.post("/login", authLimiter, validateLogin, loginUser);
 router.post("/refresh", refreshUser);
 router.post("/logout", logoutUser);
 

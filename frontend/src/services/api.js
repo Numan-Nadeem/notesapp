@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "http://localhost:3000",
+  baseURL: import.meta.env.VITE_API_URL || "http://localhost:3000",
   withCredentials: true,
 });
 
@@ -85,12 +85,8 @@ export const logout = async () => {
 };
 
 export const getNotes = async () => {
-  try {
-    const response = await api.get("/notes");
-    return response.data;
-  } catch (error) {
-    console.error(error);
-  }
+  const response = await api.get("/notes");
+  return response.data;
 };
 
 export const createNote = async (noteData) => {
@@ -114,14 +110,20 @@ export const updateNote = async (id, noteData) => {
 };
 
 export const deleteNote = async (id) => {
-  try {
-    const response = api.delete(`/notes/${id}`);
-    return response.data;
-  } catch (error) {
-    console.error(error);
-  }
+  const response = await api.delete(`/notes/${id}`);
+  return response.data;
 };
 
 export const getNote = async (id) => api.get(`/notes/${id}`);
+
+export const getAdminUsers = async () => {
+  const response = await api.get("/admin/users");
+  return response.data;
+};
+
+export const getAdminNotes = async () => {
+  const response = await api.get("/admin/notes");
+  return response.data;
+};
 
 export default api;

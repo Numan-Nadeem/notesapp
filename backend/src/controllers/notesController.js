@@ -1,9 +1,37 @@
 import cloudinary from "../config/cloudinary.js";
-import { deleteImageFile } from "../middlewares/uploadMiddleware.js";
 import * as notesService from "../services/notesService.js";
-import Note from "../model/notesModel.js"; // Add this import
-import path from "path";
+import { notFoundError } from "../utils/ApiError.js";
 import fs from "fs";
+
+// Remove any locally-buffered multer files (best effort).
+const cleanupLocalFiles = (files) => {
+  if (!files) return;
+  for (const file of files) {
+    if (file.path && fs.existsSync(file.path)) {
+      try {
+        fs.unlinkSync(file.path);
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+};
+
+// Upload a batch of local files to Cloudinary and remove them from disk.
+const uploadImages = async (files = []) => {
+  const uploaded = [];
+  for (const file of files) {
+    const result = await cloudinary.uploader.upload(file.path, {
+      resource_type: "image",
+      transformation: [
+        { width: 1200, crop: "limit", quality: "auto", fetch_format: "auto" },
+      ],
+    });
+    uploaded.push({ url: result.secure_url, public_id: result.public_id });
+    if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+  }
+  return uploaded;
+};
 
 export const getNotes = async (req, res, next) => {
   try {
@@ -21,32 +49,24 @@ export const getNotes = async (req, res, next) => {
   }
 };
 
+export const getNote = async (req, res, next) => {
+  try {
+    const note = await notesService.getNoteById(
+      req.params.id,
+      req.user.id,
+      req.user.role
+    );
+    if (!note) throw notFoundError("Note not found");
+    res.json(note);
+  } catch (err) {
+    next(err);
+  }
+};
+
 export const createNote = async (req, res, next) => {
   try {
     const { title, content } = req.body;
-    let imageUrls = [];
-
-    if (req.files && req.files.length > 0) {
-      for (const file of req.files) {
-        const result = await cloudinary.uploader.upload(file.path, {
-          resource_type: "image",
-          transformation: [
-            {
-              width: 1200,
-              crop: "limit",
-              quality: "auto",
-              fetch_format: "auto",
-            },
-          ],
-        });
-
-        imageUrls.push({
-          url: result.secure_url,
-          public_id: result.public_id,
-        });
-        fs.unlinkSync(file.path);
-      }
-    }
+    const imageUrls = await uploadImages(req.files);
 
     const newNote = await notesService.createNewNote(
       title,
@@ -57,35 +77,28 @@ export const createNote = async (req, res, next) => {
 
     res.status(201).json(newNote);
   } catch (err) {
-    // Clean up local uploads in case of failure
-    if (req.files) {
-      req.files.forEach((file) => {
-        if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
-      });
-    }
+    cleanupLocalFiles(req.files);
     next(err);
   }
 };
 
-export const updateNote = async (req, res) => {
+export const updateNote = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { title, content, existingImages } = req.body;
 
-    // Get the current note to compare images
-    const currentNote = await Note.findOne(
-      req.user.role === "admin" ? { _id: id } : { _id: id, user: req.user.id }
+    const currentNote = await notesService.getNoteById(
+      id,
+      req.user.id,
+      req.user.role
     );
-
-    if (!currentNote) {
-      return res.status(404).json({ error: "Note not found" });
-    }
+    if (!currentNote) throw notFoundError("Note not found");
 
     let keptImageUrls = [];
     if (existingImages) {
       try {
         keptImageUrls = JSON.parse(existingImages);
-      } catch (e) {
+      } catch {
         keptImageUrls = [];
       }
     }
@@ -102,7 +115,6 @@ export const updateNote = async (req, res) => {
       if (image.public_id) {
         try {
           await cloudinary.uploader.destroy(image.public_id);
-          console.log(`✅ Deleted image ${image.public_id} from Cloudinary`);
         } catch (err) {
           console.error(
             `❌ Failed to delete image ${image.public_id}:`,
@@ -112,34 +124,12 @@ export const updateNote = async (req, res) => {
       }
     }
 
-    let newImageUrls = [];
-
-    if (req.files && req.files.length > 0) {
-      for (const file of req.files) {
-        const result = await cloudinary.uploader.upload(file.path, {
-          resource_type: "image",
-          transformation: [
-            {
-              width: 1200,
-              crop: "limit",
-              quality: "auto",
-              fetch_format: "auto",
-            },
-          ],
-        });
-
-        newImageUrls.push({
-          url: result.secure_url,
-          public_id: result.public_id,
-        });
-        fs.unlinkSync(file.path);
-      }
-    }
+    const newImageUrls = await uploadImages(req.files);
 
     const updateData = {
       title,
       content,
-      images: [...keptImages, ...newImageUrls], // Fixed: spread newImageUrls instead of wrapping in array
+      images: [...keptImages, ...newImageUrls],
     };
 
     const updatedNote = await notesService.updateNote(
@@ -148,18 +138,12 @@ export const updateNote = async (req, res) => {
       req.user.role,
       updateData
     );
-    if (!updatedNote) return res.status(404).json({ error: "Note not found" });
+    if (!updatedNote) throw notFoundError("Note not found");
 
     res.json(updatedNote);
-  } catch (error) {
-    console.error("Error updating note:", error);
-    // Clean up local uploads in case of failure
-    if (req.files) {
-      req.files.forEach((file) => {
-        if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
-      });
-    }
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    cleanupLocalFiles(req.files);
+    next(err);
   }
 };
 
@@ -167,7 +151,7 @@ export const deleteNote = async (req, res, next) => {
   try {
     const { id } = req.params;
     const note = await notesService.deleteNote(id, req.user.id, req.user.role);
-    if (!note) return res.status(404).json({ error: "Note not found" });
+    if (!note) throw notFoundError("Note not found");
 
     res.json({ message: "Note deleted" });
   } catch (err) {

@@ -82,7 +82,12 @@ const Signup = () => {
         });
       }, 2000);
     } catch (error) {
-      setError(error.response.data.error || "An unexpected error occurred");
+      setError(
+        error.response?.data?.error ||
+          (error.request
+            ? "Cannot reach the server. Please try again."
+            : "An unexpected error occurred")
+      );
     } finally {
       setLoading(false);
     }

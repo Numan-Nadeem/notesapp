@@ -31,17 +31,3 @@ export const upload = multer({
     else cb(new Error("Only image files are allowed!"), false);
   },
 });
-
-export const deleteImageFile = (imagePath) => {
-  try {
-    const normalizedPath = path.normalize(imagePath);
-    if (fs.existsSync(normalizedPath)) {
-      fs.unlinkSync(normalizedPath);
-      console.log("Image deleted! ", normalizedPath);
-    } else {
-      console.log("File not found! ", normalizedPath);
-    }
-  } catch (error) {
-    console.log(error);
-  }
-};

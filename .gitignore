@@ -30,6 +30,7 @@ backend/dist
 
 # Environment files
 backend/.env
+frontend/.env
 
 # Prettier config
 backend/.prettierrc

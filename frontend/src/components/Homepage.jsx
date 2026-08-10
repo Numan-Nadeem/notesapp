@@ -9,7 +9,7 @@ const Homepage = () => {
     <div className="max-w-4xl mx-auto text-center">
       <div className="mb-8">
         <h1 className="text-4xl font-bold text-white mb-4">
-          Welcome to Notes App
+          Welcome to Notsify
         </h1>
         {user && (
           <p className="text-xl text-white mb-8">

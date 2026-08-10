@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 import GooeyNav from "./GooeyNav";
 
 const Navbar = () => {
-  const { logout, isAuthenticated } = useAuth();
+  const { logout, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const gooeyNavRef = useRef(null);
@@ -20,20 +20,7 @@ const Navbar = () => {
     }
   };
 
-  const getActiveIndex = () => {
-    if (location.pathname === "/") return 0;
-    if (location.pathname === "/notes") return 1;
-    return 0;
-  };
-
-  // Update active index when location changes
-  useEffect(() => {
-    if (gooeyNavRef.current && gooeyNavRef.current.setActiveIndex) {
-      gooeyNavRef.current.setActiveIndex(getActiveIndex());
-    }
-  }, [location.pathname]);
-
-  if (!isAuthenticated) return null;
+  const isAdmin = user?.role === "admin";
 
   const items = [
     {
@@ -46,8 +33,31 @@ const Navbar = () => {
       href: "/notes",
       onClick: () => handleNavigation("/notes"),
     },
+    ...(isAdmin
+      ? [
+          {
+            label: "Admin",
+            href: "/admin",
+            onClick: () => handleNavigation("/admin"),
+          },
+        ]
+      : []),
     { label: "Logout", href: "#", onClick: handleLogout },
   ];
+
+  const getActiveIndex = () => {
+    const idx = items.findIndex((item) => item.href === location.pathname);
+    return idx >= 0 ? idx : 0;
+  };
+
+  // Update active index when location changes
+  useEffect(() => {
+    if (gooeyNavRef.current && gooeyNavRef.current.setActiveIndex) {
+      gooeyNavRef.current.setActiveIndex(getActiveIndex());
+    }
+  }, [location.pathname]);
+
+  if (!isAuthenticated) return null;
 
   return (
     <nav className="w-full bg-[#060010] flex justify-center items-center shadow-md border-b border-neutral-900">

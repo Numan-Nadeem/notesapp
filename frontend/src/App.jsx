@@ -12,6 +12,8 @@ import Signup from "./components/Signup.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import Homepage from "./components/Homepage.jsx";
 import Notes from "./components/Notes.jsx";
+import Admin from "./components/Admin.jsx";
+import ErrorBoundary from "./components/ErrorBoundary.jsx";
 
 const App = () => {
   const router = createBrowserRouter(
@@ -34,6 +36,14 @@ const App = () => {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="admin"
+            element={
+              <ProtectedRoute requireAdmin>
+                <Admin />
+              </ProtectedRoute>
+            }
+          />
         </Route>
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
@@ -42,9 +52,11 @@ const App = () => {
   );
 
   return (
-    <AuthProvider>
-      <RouterProvider router={router} />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <RouterProvider router={router} />
+      </AuthProvider>
+    </ErrorBoundary>
   );
 };
 

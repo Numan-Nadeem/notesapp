@@ -1,7 +1,5 @@
 import cloudinary from "../config/cloudinary.js";
-import { deleteImageFile } from "../middlewares/uploadMiddleware.js";
 import Note from "../model/notesModel.js";
-import path from "path";
 
 export const getAllNotes = async ({
   page = 1,
@@ -40,6 +38,11 @@ export const getAllNotes = async ({
     page,
     pages: Math.ceil(total / limit),
   };
+};
+
+export const getNoteById = async (id, user, role) => {
+  const filter = role === "admin" ? { _id: id } : { _id: id, user };
+  return await Note.findOne(filter);
 };
 
 export const createNewNote = async (title, content, user, images = []) =>

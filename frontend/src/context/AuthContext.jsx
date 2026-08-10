@@ -34,6 +34,19 @@ export const AuthProvider = ({ children }) => {
     checkAuth();
   }, []);
 
+  // When a token refresh fails, api.js dispatches "auth-expired". Clear
+  // client auth state so ProtectedRoute redirects to /login.
+  useEffect(() => {
+    const handleAuthExpired = () => {
+      localStorage.removeItem("userData");
+      setIsAuthenticated(false);
+      setUser(null);
+    };
+
+    window.addEventListener("auth-expired", handleAuthExpired);
+    return () => window.removeEventListener("auth-expired", handleAuthExpired);
+  }, []);
+
   const login = (userData) => {
     localStorage.setItem("userData", JSON.stringify(userData));
     setIsAuthenticated(true);
