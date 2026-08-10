@@ -6,7 +6,10 @@ export const connectDB = async () => {
     // Some environments have DNS servers that refuse SRV queries (causing
     // `querySrv ECONNREFUSED`). If the URI is an SRV string, prefer public
     // DNS resolvers which reliably answer SRV records.
-    if (process.env.MONGO_URI && process.env.MONGO_URI.startsWith("mongodb+srv://")) {
+    if (
+      process.env.MONGO_URI &&
+      process.env.MONGO_URI.startsWith("mongodb+srv://")
+    ) {
       try {
         dns.setServers(["8.8.8.8", "1.1.1.1"]);
       } catch (e) {
