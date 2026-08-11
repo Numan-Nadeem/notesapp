@@ -11,6 +11,10 @@ import Login from "./components/Login.jsx";
 import Signup from "./components/Signup.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import Homepage from "./components/Homepage.jsx";
+import PricingPage from "./components/PricingPage.jsx";
+import AboutPage from "./components/AboutPage.jsx";
+import FaqPage from "./components/FaqPage.jsx";
+import ContactPage from "./components/ContactPage.jsx";
 import Notes from "./components/Notes.jsx";
 import Admin from "./components/Admin.jsx";
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
@@ -40,6 +44,10 @@ const App = () => {
         </Route>
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/pricing" element={<PricingPage />} />
+        <Route path="/about" element={<AboutPage />} />
+        <Route path="/faq" element={<FaqPage />} />
+        <Route path="/contact" element={<ContactPage />} />
       </>
     )
   );

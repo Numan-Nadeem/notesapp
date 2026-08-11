@@ -2,7 +2,7 @@
 @plugin "daisyui";
 
 @theme {
-  --font-sans: "Geist", system-ui, sans-serif;
+  --font-sans: "Geist", "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
   --font-serif: "Instrument Serif", Georgia, serif;
   --color-accent: #c8ff00;
   --color-accent-soft: #d4ff33;
@@ -43,6 +43,10 @@
 
 html {
   scroll-behavior: smooth;
+}
+
+body, button, input, select, textarea, a {
+  font-family: var(--font-sans);
 }
 
 body {

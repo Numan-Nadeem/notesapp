@@ -16,7 +16,12 @@ import {
   FiFileText,
   FiClock,
   FiImage as FiImageIcon,
+  FiCheck,
+  FiChevronDown,
+  FiSend,
+  FiShield,
 } from "react-icons/fi";
+import LandingNavbar from "./LandingNavbar.jsx";
 
 import vercelSvg from "../assets/svgrepo/vercel.svg";
 import figmaSvg from "../assets/svgrepo/figma.svg";
@@ -310,9 +315,11 @@ const LandingPage = () => {
   const pageRef = useScrollReveal();
 
   return (
-    <div ref={pageRef} className="overflow-hidden">
+    <div ref={pageRef} className="overflow-x-hidden pt-16 md:pt-20">
+      <LandingNavbar />
+
       {/* ===== HERO — Ethereal Glass, centered ===== */}
-      <section className="relative pt-10 pb-6 md:pt-14 md:pb-8 flex flex-col items-center justify-center">
+      <section id="home" className="relative pt-8 pb-6 md:pt-14 md:pb-8 flex flex-col items-center justify-center">
         {/* Radial mesh orbs */}
         <div
           className="absolute top-0 left-1/2 -translate-x-1/2 w-[1200px] h-[700px] pointer-events-none"
@@ -323,14 +330,7 @@ const LandingPage = () => {
           }}
         />
 
-        <div className="max-w-4xl mx-auto px-6 text-center relative z-10">
-          <div className="reveal mb-6 flex justify-center">
-            <img
-              src="/notsify-logo.png"
-              alt="Notsify"
-              className="h-8 md:h-6 lg:h-18 w-auto object-contain drop-shadow-[0_4px_20px_rgba(200,255,0,0.12)]"
-            />
-          </div>
+        <div className="max-w-4xl mx-auto px-6 text-center relative z-10 pt-4">
 
           <h1
             className="reveal reveal-delay-1 text-[clamp(2.75rem,7vw,5.5rem)] font-bold leading-[0.98] tracking-[-0.04em] mb-5"
