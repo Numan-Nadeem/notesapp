@@ -14,6 +14,13 @@
   },
   "rewrites": [
     {
+      "source": "/api",
+      "destination": {
+        "type": "service",
+        "service": "backend"
+      }
+    },
+    {
       "source": "/api/(.*)",
       "destination": {
         "type": "service",
@@ -21,22 +28,11 @@
       }
     },
     {
-      "source": "/assets/(.*)",
-      "destination": {
-        "type": "service",
-        "service": "frontend"
-      }
-    },
-    {
-      "source": "/:file(.*\\..*)",
-      "destination": {
-        "type": "service",
-        "service": "frontend"
-      }
-    },
-    {
       "source": "/(.*)",
-      "destination": "/index.html"
+      "destination": {
+        "type": "service",
+        "service": "frontend"
+      }
     }
   ]
 }
