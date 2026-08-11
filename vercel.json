@@ -11,25 +11,32 @@
   },
   "rewrites": [
     {
-      "source": "/api/(.*)?",
+      "source": "/api/(.*)",
       "destination": {
         "type": "service",
         "service": "backend"
       }
     },
     {
-      "source": "/((?!assets/|.*\\..*).*)",
+      "source": "/assets/(.*)",
       "destination": {
         "type": "service",
-        "service": "frontend",
-        "path": "/index.html"
+        "service": "frontend"
+      }
+    },
+    {
+      "source": "/:file(.*\\..*)",
+      "destination": {
+        "type": "service",
+        "service": "frontend"
       }
     },
     {
       "source": "/(.*)",
       "destination": {
         "type": "service",
-        "service": "frontend"
+        "service": "frontend",
+        "path": "/index.html"
       }
     }
   ]
