@@ -34,7 +34,7 @@ const ContactPage = () => {
           Accept: "application/json",
         },
         body: JSON.stringify({
-          access_key: import.meta.env.VITE_WEB3FORMS_ACCESS_KEY || "YOUR_ACCESS_KEY_HERE",
+          access_key: import.meta.env.VITE_WEB3FORMS_ACCESS_KEY,
           "h-captcha-response": captchaToken,
           ...contactData,
         }),
@@ -125,7 +125,7 @@ const ContactPage = () => {
                 
                 <div className="flex justify-center my-4 overflow-hidden rounded-lg">
                   <HCaptcha
-                    sitekey={import.meta.env.VITE_HCAPTCHA_SITEKEY || "50b2fe65-b00b-4b9e-ad62-3ba471098be2"}
+                    sitekey={import.meta.env.VITE_HCAPTCHA_SITEKEY}
                     reCaptchaCompat={false}
                     theme="dark"
                     onVerify={(token) => {
