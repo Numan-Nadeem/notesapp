@@ -6,19 +6,27 @@ const LazyImage = ({ idx, imageUrl, maxHeight }) => {
   return (
     <div
       key={idx}
-      className="relative overflow-hidden flex justify-center items-center 
-                  rounded-xl border border-neutral-700"
+      className="relative overflow-hidden w-full h-full"
       style={{ maxHeight }}
     >
       {!loaded && (
-        <div className="absolute inset-0 flex items-center justify-center bg-neutral-900/30">
-          <span className="loading loading-spinner text-primary"></span>
+        <div
+          className="absolute inset-0 flex items-center justify-center animate-pulse"
+          style={{ background: "var(--color-surface-overlay)" }}
+        >
+          <div
+            className="w-5 h-5 border-2 rounded-full animate-spin"
+            style={{
+              borderColor: "var(--color-border-subtle)",
+              borderTopColor: "var(--color-accent)",
+            }}
+          />
         </div>
       )}
 
       <img
         src={imageUrl}
-        alt={`Note Image ${idx + 1}`}
+        alt=""
         className={`w-full h-full object-cover transition-opacity duration-500 ${
           loaded ? "opacity-100" : "opacity-0"
         }`}

@@ -43,7 +43,11 @@ const SpotlightCard = ({
       onBlur={handleBlur}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className={`relative rounded-3xl border border-neutral-800 bg-neutral-900 overflow-hidden p-5 ${className} text-white`}
+      className={`relative rounded-2xl overflow-hidden p-5 ${className} text-white`}
+      style={{
+        background: "var(--color-surface-raised)",
+        border: "1px solid var(--color-border-subtle)",
+      }}
     >
       <div
         className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 ease-in-out"

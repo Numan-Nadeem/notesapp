@@ -60,7 +60,7 @@ const Navbar = () => {
   if (!isAuthenticated) return null;
 
   return (
-    <nav className="w-full bg-[#060010] flex justify-center items-center shadow-md border-b border-neutral-900">
+    <nav className="w-full flex justify-center items-center border-b border-[var(--color-border-subtle)]" style={{ background: "var(--color-surface)" }}>
       <div style={{ height: "80px", position: "relative" }}>
         <GooeyNav
           ref={gooeyNavRef}

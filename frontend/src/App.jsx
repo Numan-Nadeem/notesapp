@@ -20,14 +20,7 @@ const App = () => {
     createRoutesFromElements(
       <>
         <Route path="/" element={<Layout />}>
-          <Route
-            index
-            element={
-              <ProtectedRoute>
-                <Homepage />
-              </ProtectedRoute>
-            }
-          />
+          <Route index element={<Homepage />} />
           <Route
             path="notes"
             element={

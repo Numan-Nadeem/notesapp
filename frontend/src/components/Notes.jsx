@@ -1,4 +1,4 @@
-import React, { Suspense, useEffect, useState } from "react";
+import React, { Suspense, useEffect, useMemo, useState } from "react";
 import SpotlightCard from "./SpotlightCard";
 import {
   createNote,
@@ -6,10 +6,42 @@ import {
   getNotes,
   updateNote,
 } from "../services/api.js";
-import { FiEdit2, FiPaperclip, FiTrash, FiX } from "react-icons/fi";
-import { GoKebabHorizontal } from "react-icons/go";
+import {
+  FiEdit2,
+  FiPaperclip,
+  FiTrash,
+  FiX,
+  FiPlus,
+  FiSearch,
+  FiFileText,
+  FiImage,
+  FiClock,
+} from "react-icons/fi";
 
 const LazyImage = React.lazy(() => import("./LazyImage.jsx"));
+
+const formatDate = (dateString) => {
+  if (!dateString) return "";
+  const date = new Date(dateString);
+  const now = new Date();
+  const diff = now - date;
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+  if (days === 0) {
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    if (hours === 0) {
+      const mins = Math.floor(diff / (1000 * 60));
+      return mins <= 1 ? "Just now" : `${mins}m ago`;
+    }
+    return `${hours}h ago`;
+  }
+  if (days === 1) return "Yesterday";
+  if (days < 7) return `${days}d ago`;
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+};
 
 const Notes = () => {
   const [notes, setNotes] = useState([]);
@@ -24,6 +56,8 @@ const Notes = () => {
   const [isModalClosing, setIsModalClosing] = useState(false);
   const [hoveredNoteId, setHoveredNoteId] = useState(null);
   const [optionsNoteId, setOptionsNoteId] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [loading, setLoading] = useState(true);
 
   const handleAddNote = async (e) => {
     e.preventDefault();
@@ -50,7 +84,7 @@ const Notes = () => {
         closeModal();
       }
     } catch (error) {
-      console.error("❌ Error creating note:", error);
+      console.error("Error creating note:", error);
     }
   };
 
@@ -126,12 +160,15 @@ const Notes = () => {
 
   const fetchNotes = async () => {
     try {
+      setLoading(true);
       const data = await getNotes();
       if (data && data.notes) {
         setNotes(data.notes);
       }
     } catch (error) {
       console.error("Error fetching notes:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -139,43 +176,118 @@ const Notes = () => {
     fetchNotes();
   }, []);
 
+  const filteredNotes = useMemo(() => {
+    if (!searchQuery.trim()) return notes;
+    const q = searchQuery.toLowerCase();
+    return notes.filter(
+      (n) =>
+        n.title?.toLowerCase().includes(q) ||
+        n.content?.toLowerCase().includes(q)
+    );
+  }, [notes, searchQuery]);
+
   return (
-    <div className="max-w-6xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-white">My Notes</h1>
-        <button
-          onClick={openModal}
-          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors cursor-pointer"
-        >
-          Add New Note
-        </button>
+    <div className="max-w-6xl mx-auto px-6 py-10 md:py-14">
+      {/* Header */}
+      <div className="flex flex-col gap-6 mb-10">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <p
+              className="text-xs font-medium tracking-widest uppercase mb-2"
+              style={{ color: "var(--color-accent)" }}
+            >
+              Your collection
+            </p>
+            <h1
+              className="text-3xl md:text-4xl font-bold tracking-[-0.02em]"
+              style={{ color: "var(--color-text-primary)" }}
+            >
+              Notes
+            </h1>
+            <p
+              className="text-sm mt-1"
+              style={{ color: "var(--color-text-muted)" }}
+            >
+              {loading
+                ? "Loading..."
+                : `${notes.length} note${notes.length === 1 ? "" : "s"} total`}
+            </p>
+          </div>
+          <button
+            onClick={openModal}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 cursor-pointer hover:translate-y-[-1px]"
+            style={{ background: "var(--color-accent)", color: "#060010" }}
+          >
+            <FiPlus size={16} />
+            New note
+          </button>
+        </div>
+
+        {/* Search */}
+        {notes.length > 0 && (
+          <div className="relative max-w-md">
+            <FiSearch
+              size={16}
+              className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none"
+              style={{ color: "var(--color-text-muted)" }}
+            />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search notes..."
+              className="w-full pl-11 pr-4 py-2.5 rounded-xl text-sm transition-colors duration-200"
+              style={{
+                border: "1px solid var(--color-border-default)",
+                background: "var(--color-surface-raised)",
+                color: "var(--color-text-primary)",
+              }}
+            />
+          </div>
+        )}
       </div>
 
+      {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50  flex items-center justify-center z-50 p-4">
+        <div
+          className="fixed inset-0 flex items-center justify-center z-50 p-4"
+          style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
+        >
           <div
-            className={`relative rounded-3xl border border-neutral-800 bg-neutral-900 overflow-hidden p-8 text-white max-w-2xl w-full transform transition-all duration-200 ease-out ${
+            className={`relative rounded-2xl overflow-hidden p-8 text-white max-w-2xl w-full transform transition-all duration-200 ease-out ${
               isModalClosing
                 ? "scale-95 opacity-0"
                 : "scale-100 opacity-100 animate-bounce-in"
             }`}
+            style={{
+              background: "var(--color-surface-raised)",
+              border: "1px solid var(--color-border-subtle)",
+            }}
           >
             <button
               onClick={closeModal}
-              className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors p-2 hover:bg-neutral-800 rounded-lg cursor-pointer"
+              className="absolute top-4 right-4 transition-colors p-2 rounded-lg cursor-pointer"
+              style={{ color: "var(--color-text-muted)" }}
             >
               <FiX size={20} />
             </button>
 
-            <h2 className="text-2xl font-bold mb-6">
-              {isUpdating ? "Update Note" : "Add New Note"}
+            <p
+              className="text-xs font-medium tracking-widest uppercase mb-2"
+              style={{ color: "var(--color-accent)" }}
+            >
+              {isUpdating ? "Edit note" : "New note"}
+            </p>
+            <h2 className="text-2xl font-bold mb-8">
+              {isUpdating ? "Update your note" : "Create a note"}
             </h2>
 
             <form onSubmit={isUpdating ? handleUpdateNote : handleAddNote}>
-              <div className="mb-6">
+              <div className="mb-5">
                 <label
                   htmlFor="title"
-                  className="block text-sm font-medium text-white mb-2"
+                  className="block text-xs font-medium mb-2"
+                  style={{ color: "var(--color-text-secondary)" }}
                 >
                   Title
                 </label>
@@ -186,15 +298,21 @@ const Notes = () => {
                   onChange={(e) =>
                     setNewNote({ ...newNote, title: e.target.value })
                   }
-                  className="w-full px-3 py-2 rounded-xl border border-neutral-700 bg-neutral-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Enter note title"
+                  className="w-full px-4 py-3 rounded-xl text-sm transition-colors duration-200"
+                  style={{
+                    border: "1px solid var(--color-border-default)",
+                    background: "var(--color-surface)",
+                    color: "var(--color-text-primary)",
+                  }}
+                  placeholder="Give it a title"
                   required
                 />
               </div>
-              <div className="mb-6">
+              <div className="mb-5">
                 <label
                   htmlFor="content"
-                  className="block text-sm font-medium text-white mb-2"
+                  className="block text-xs font-medium mb-2"
+                  style={{ color: "var(--color-text-secondary)" }}
                 >
                   Content
                 </label>
@@ -205,14 +323,28 @@ const Notes = () => {
                     setNewNote({ ...newNote, content: e.target.value })
                   }
                   rows={6}
-                  className="w-full px-3 py-2 rounded-xl border border-neutral-700 bg-neutral-800 mb-6 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                  placeholder="Enter note content"
+                  className="w-full px-4 py-3 rounded-xl mb-4 text-sm resize-none transition-colors duration-200"
+                  style={{
+                    border: "1px solid var(--color-border-default)",
+                    background: "var(--color-surface)",
+                    color: "var(--color-text-primary)",
+                  }}
+                  placeholder="Start writing..."
                   required
                 ></textarea>
+
+                {/* Image upload + previews */}
                 <div className="flex gap-4 max-sm:flex-col">
                   <label className="inline-block">
-                    <span className="flex items-center justify-center gap-2 bg-black/60 text-white px-6 py-2 rounded-xl hover:bg-gray-700 transition-colors font-semibold cursor-pointer">
-                      <FiPaperclip /> Upload Image
+                    <span
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl transition-colors duration-200 font-medium cursor-pointer text-sm"
+                      style={{
+                        background: "var(--color-surface-overlay)",
+                        color: "var(--color-text-secondary)",
+                        border: "1px solid var(--color-border-subtle)",
+                      }}
+                    >
+                      <FiPaperclip size={14} /> Attach images
                     </span>
                     <input
                       type="file"
@@ -226,7 +358,7 @@ const Notes = () => {
                     />
                   </label>
                   {newNote.image && newNote.image.length > 0 && (
-                    <Suspense fallback={<div>Loading preview...</div>}>
+                    <Suspense fallback={null}>
                       <div className="flex gap-2 flex-wrap max-sm:grid max-sm:grid-cols-4">
                         {newNote.image.map((image, idx) => {
                           const imageUrl =
@@ -237,7 +369,10 @@ const Notes = () => {
                           return (
                             <div
                               key={idx}
-                              className="relative group w-[5rem] rounded-xl overflow-hidden border border-neutral-700"
+                              className="relative group w-[5rem] rounded-lg overflow-hidden"
+                              style={{
+                                border: "1px solid var(--color-border-subtle)",
+                              }}
                             >
                               <LazyImage
                                 idx={idx}
@@ -246,8 +381,8 @@ const Notes = () => {
                               />
 
                               <div
-                                className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 
-              group-hover:opacity-100 transition-opacity duration-300 cursor-pointer"
+                                className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 cursor-pointer"
+                                style={{ background: "rgba(0,0,0,0.7)" }}
                                 onClick={() => {
                                   const updated = newNote.image.filter(
                                     (_, i) => i !== idx
@@ -255,7 +390,10 @@ const Notes = () => {
                                   setNewNote({ ...newNote, image: updated });
                                 }}
                               >
-                                <FiTrash className="text-xl text-red-400 transition-transform transform group-hover:scale-110" />
+                                <FiTrash
+                                  className="text-sm"
+                                  style={{ color: "#f87171" }}
+                                />
                               </div>
                             </div>
                           );
@@ -265,19 +403,26 @@ const Notes = () => {
                   )}
                 </div>
               </div>
-              <div className="flex gap-3 justify-end max-sm:block">
+
+              <div className="flex gap-3 justify-end max-sm:flex-col max-sm:items-stretch">
                 <button
                   type="button"
                   onClick={closeModal}
-                  className="bg-gray-600 text-white px-6 py-2 rounded-xl hover:bg-gray-700 transition-colors font-semibold cursor-pointer max-sm:hidden"
+                  className="px-6 py-2.5 rounded-xl transition-colors duration-200 font-semibold cursor-pointer max-sm:order-2"
+                  style={{
+                    background: "var(--color-surface-overlay)",
+                    color: "var(--color-text-secondary)",
+                    border: "1px solid var(--color-border-subtle)",
+                  }}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="bg-blue-600 text-white px-6 py-2 rounded-xl hover:bg-blue-700 transition-colors font-semibold cursor-pointer max-sm:w-full max-sm:mt-2"
+                  className="px-6 py-2.5 rounded-xl transition-all duration-200 font-semibold cursor-pointer max-sm:order-1"
+                  style={{ background: "var(--color-accent)", color: "#060010" }}
                 >
-                  {isUpdating ? "Update Note" : "Save Note"}
+                  {isUpdating ? "Save changes" : "Create note"}
                 </button>
               </div>
             </form>
@@ -285,117 +430,268 @@ const Notes = () => {
         </div>
       )}
 
-      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-        {notes.map((note) => (
+      {/* Notes grid */}
+      {loading ? (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div
+              key={i}
+              className="rounded-2xl p-5 animate-pulse"
+              style={{
+                background: "var(--color-surface-raised)",
+                border: "1px solid var(--color-border-subtle)",
+                minHeight: "180px",
+              }}
+            >
+              <div
+                className="h-5 rounded w-2/3 mb-4"
+                style={{ background: "var(--color-surface-overlay)" }}
+              />
+              <div
+                className="h-3 rounded w-full mb-2"
+                style={{ background: "var(--color-surface-overlay)" }}
+              />
+              <div
+                className="h-3 rounded w-4/5"
+                style={{ background: "var(--color-surface-overlay)" }}
+              />
+            </div>
+          ))}
+        </div>
+      ) : filteredNotes.length === 0 && notes.length > 0 ? (
+        <div className="text-center py-20">
           <div
-            key={note._id}
-            className="relative"
-            onMouseEnter={() => setHoveredNoteId(note._id)}
-            onMouseLeave={() => {
-              setHoveredNoteId(null);
-              setOptionsNoteId(null);
+            className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4"
+            style={{
+              background: "var(--color-surface-raised)",
+              color: "var(--color-text-muted)",
             }}
           >
-            <SpotlightCard
-              className="custom-spotlight-card"
-              spotlightColor="rgb(21, 93, 252,0.3)"
-            >
-              <div className="flex justify-between items-center pb-3">
-                <h1 className="text-xl font-bold line-clamp-2">{note.title}</h1>
-                {hoveredNoteId === note._id && optionsNoteId !== note._id && (
-                  <button
-                    className="absolute top-2 right-2 px-2 py-1 rounded-lg cursor-pointer transition-all duration-300 hover:bg-gray-600 max-sm:text-2xl"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setOptionsNoteId(note._id);
-                    }}
-                  >
-                    <GoKebabHorizontal />
-                  </button>
-                )}
-                {optionsNoteId === note._id && (
-                  <div
-                    className={`absolute flex gap-1 top-2 right-2 bg-[rgb(6,0,16)] p-1 rounded-lg transform transition-all duration-200 ease-out ${
-                      isModalClosing
-                        ? "scale-95 opacity-0"
-                        : "scale-100 opacity-100 animate-bounce-in"
-                    } max-sm:p-2`}
-                  >
-                    <button
-                      className="p-1 rounded-lg cursor-pointer transition-all duration-300 hover:bg-gray-600 max-sm:text-xl "
-                      onClick={() =>
-                        handleEditClick(
-                          note._id,
-                          note.title,
-                          note.content,
-                          note.images || []
-                        )
-                      }
-                    >
-                      <FiEdit2 />
-                    </button>
-                    <button
-                      className="p-1 rounded-lg cursor-pointer transition-all duration-300 hover:bg-red-600 hover:border-red-400 max-sm:text-xl "
-                      onClick={() => handleDeleteNote(note._id)}
-                    >
-                      <FiTrash />
-                    </button>
-                    <button
-                      className="p-1 rounded-lg cursor-pointer transition-all duration-300 hover:bg-gray-600 max-sm:text-xl "
-                      onClick={() => setOptionsNoteId(null)}
-                      title="Close"
-                    >
-                      <FiX />
-                    </button>
-                  </div>
-                )}
-              </div>
-              <p className="line-clamp-6 mb-5">{note.content}</p>
-
-              {note.images && note.images.length > 0 && (
-                <div className="grid grid-cols-3 gap-2 mb-5">
-                  {note.images.map((image, idx) => {
-                    return (
-                      <Suspense key={idx}>
-                        <LazyImage
-                          idx={idx}
-                          imageUrl={image.url}
-                          maxHeight="5rem"
-                        />
-                      </Suspense>
-                    );
-                  })}
-                </div>
-              )}
-              <span
-                className="absolute bottom-3 left-6 text-gray-500 text-xs mt-6"
-                style={{ right: "auto" }}
-              >
-                {note.createdAt
-                  ? new Date(note.createdAt).toLocaleString()
-                  : ""}
-              </span>
-            </SpotlightCard>
+            <FiSearch size={20} />
           </div>
-        ))}
-      </div>
-
-      {notes.length === 0 && (
-        <div className="text-center py-12">
-          <p className="text-white text-lg">
-            No notes yet. Create your first note!
+          <p
+            className="text-base font-medium mb-1"
+            style={{ color: "var(--color-text-primary)" }}
+          >
+            No matches found
           </p>
+          <p
+            className="text-sm"
+            style={{ color: "var(--color-text-muted)" }}
+          >
+            Try a different search term.
+          </p>
+        </div>
+      ) : notes.length === 0 ? (
+        <div
+          className="rounded-2xl p-12 md:p-20 text-center"
+          style={{
+            background: "var(--color-surface-raised)",
+            border: "1px solid var(--color-border-subtle)",
+          }}
+        >
+          <div
+            className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-6"
+            style={{
+              background: "var(--color-accent-dim)",
+              color: "var(--color-accent)",
+            }}
+          >
+            <FiFileText size={24} />
+          </div>
+          <p
+            className="text-lg font-semibold mb-2"
+            style={{ color: "var(--color-text-primary)" }}
+          >
+            No notes yet
+          </p>
+          <p
+            className="text-sm mb-8 max-w-xs mx-auto"
+            style={{ color: "var(--color-text-muted)" }}
+          >
+            Create your first note to start organizing your thoughts.
+          </p>
+          <button
+            onClick={openModal}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 cursor-pointer hover:translate-y-[-1px]"
+            style={{ background: "var(--color-accent)", color: "#060010" }}
+          >
+            <FiPlus size={16} />
+            Create a note
+          </button>
+        </div>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {filteredNotes.map((note) => (
+            <div
+              key={note._id}
+              className="relative group"
+              onMouseEnter={() => setHoveredNoteId(note._id)}
+              onMouseLeave={() => {
+                setHoveredNoteId(null);
+                setOptionsNoteId(null);
+              }}
+            >
+              <SpotlightCard
+                className="custom-spotlight-card h-full"
+                spotlightColor="rgba(200, 255, 0, 0.15)"
+              >
+                <div className="flex flex-col h-full">
+                  {/* Title row */}
+                  <div className="flex justify-between items-start gap-2 mb-3">
+                    <h3
+                      className="text-base font-semibold line-clamp-2 leading-snug"
+                      style={{ color: "var(--color-text-primary)" }}
+                    >
+                      {note.title}
+                    </h3>
+                    {hoveredNoteId === note._id && optionsNoteId !== note._id && (
+                      <button
+                        className="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg cursor-pointer transition-colors duration-200"
+                        style={{
+                          color: "var(--color-text-muted)",
+                          background: "var(--color-surface-overlay)",
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOptionsNoteId(note._id);
+                        }}
+                      >
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="currentColor"
+                        >
+                          <circle cx="12" cy="5" r="2" />
+                          <circle cx="12" cy="12" r="2" />
+                          <circle cx="12" cy="19" r="2" />
+                        </svg>
+                      </button>
+                    )}
+                    {optionsNoteId === note._id && (
+                      <div
+                        className={`absolute top-0 right-0 flex gap-1 p-1 rounded-lg transform transition-all duration-200 ease-out z-20 ${
+                          isModalClosing
+                            ? "scale-95 opacity-0"
+                            : "scale-100 opacity-100 animate-bounce-in"
+                        }`}
+                        style={{
+                          background: "var(--color-surface-overlay)",
+                          border: "1px solid var(--color-border-default)",
+                        }}
+                      >
+                        <button
+                          className="w-7 h-7 flex items-center justify-center rounded-md cursor-pointer transition-colors duration-200 hover:bg-white/5"
+                          style={{ color: "var(--color-text-secondary)" }}
+                          onClick={() =>
+                            handleEditClick(
+                              note._id,
+                              note.title,
+                              note.content,
+                              note.images || []
+                            )
+                          }
+                          title="Edit"
+                        >
+                          <FiEdit2 size={14} />
+                        </button>
+                        <button
+                          className="w-7 h-7 flex items-center justify-center rounded-md cursor-pointer transition-colors duration-200"
+                          style={{ color: "#f87171" }}
+                          onClick={() => handleDeleteNote(note._id)}
+                          title="Delete"
+                        >
+                          <FiTrash size={14} />
+                        </button>
+                        <button
+                          className="w-7 h-7 flex items-center justify-center rounded-md cursor-pointer transition-colors duration-200 hover:bg-white/5"
+                          style={{ color: "var(--color-text-muted)" }}
+                          onClick={() => setOptionsNoteId(null)}
+                          title="Close"
+                        >
+                          <FiX size={14} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Content */}
+                  <p
+                    className="text-sm leading-relaxed line-clamp-4 mb-4 flex-1"
+                    style={{ color: "var(--color-text-secondary)" }}
+                  >
+                    {note.content}
+                  </p>
+
+                  {/* Images */}
+                  {note.images && note.images.length > 0 && (
+                    <div
+                      className={`grid gap-1.5 mb-4 ${
+                        note.images.length === 1
+                          ? "grid-cols-1"
+                          : note.images.length === 2
+                          ? "grid-cols-2"
+                          : "grid-cols-3"
+                      }`}
+                    >
+                      {note.images.slice(0, 3).map((image, idx) => (
+                        <Suspense key={idx} fallback={null}>
+                          <div
+                            className="rounded-lg overflow-hidden"
+                            style={{
+                              border: "1px solid var(--color-border-subtle)",
+                              aspectRatio:
+                                note.images.length === 1 ? "16/9" : "1/1",
+                            }}
+                          >
+                            <LazyImage
+                              idx={idx}
+                              imageUrl={image.url}
+                              maxHeight={
+                                note.images.length === 1 ? "12rem" : "5rem"
+                              }
+                            />
+                          </div>
+                        </Suspense>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Metadata footer */}
+                  <div
+                    className="flex items-center gap-3 pt-3"
+                    style={{ borderTop: "1px solid var(--color-border-subtle)" }}
+                  >
+                    <span
+                      className="flex items-center gap-1.5 text-xs"
+                      style={{ color: "var(--color-text-muted)" }}
+                    >
+                      <FiClock size={11} />
+                      {formatDate(note.createdAt)}
+                    </span>
+                    {note.images && note.images.length > 0 && (
+                      <span
+                        className="flex items-center gap-1.5 text-xs"
+                        style={{ color: "var(--color-text-muted)" }}
+                      >
+                        <FiImage size={11} />
+                        {note.images.length}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </SpotlightCard>
+            </div>
+          ))}
         </div>
       )}
 
       <style>{`
         @keyframes bounce-in {
           0% {
-            transform: scale(0.8);
+            transform: scale(0.95);
             opacity: 0;
-          }
-          50% {
-            transform: scale(1.05);
           }
           100% {
             transform: scale(1);
@@ -404,7 +700,7 @@ const Notes = () => {
         }
 
         .animate-bounce-in {
-          animation: bounce-in 0.3s ease-out;
+          animation: bounce-in 0.2s ease-out;
         }
       `}</style>
     </div>

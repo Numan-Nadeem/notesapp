@@ -1,5 +1,5 @@
 import Token from "../model/Token.js";
-import { login, refresh, signup } from "../services/authService.js";
+import { login, refresh, signup, googleAuth } from "../services/authService.js";
 import {
   accessCookieOptions,
   refreshCookieOptions,
@@ -67,6 +67,22 @@ export const logoutUser = async (req, res, next) => {
       .clearCookie("accessToken", clearCookieOptions)
       .clearCookie("refreshToken", clearCookieOptions)
       .json({ message: "Logged out successfully" });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const googleAuthUser = async (req, res, next) => {
+  try {
+    const { credential } = req.body;
+    const { user, accessToken, refreshToken } = await googleAuth({ credential });
+    res
+      .cookie("accessToken", accessToken, accessCookieOptions)
+      .cookie("refreshToken", refreshToken, refreshCookieOptions)
+      .json({
+        message: "Google login successful",
+        user: { email: user.email, name: user.name, role: user.role },
+      });
   } catch (error) {
     next(error);
   }

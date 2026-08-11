@@ -39,62 +39,64 @@ const Admin = () => {
   }, []);
 
   return (
-    <div className="max-w-6xl mx-auto text-white">
+    <div className="max-w-6xl mx-auto px-6 py-8 text-white">
       <h1 className="text-3xl font-bold mb-6">Admin Dashboard</h1>
 
       <div className="flex gap-2 mb-6">
         <button
           onClick={() => setTab("users")}
-          className={`px-4 py-2 rounded-md transition-colors cursor-pointer ${
-            tab === "users"
-              ? "bg-blue-600"
-              : "bg-neutral-800 hover:bg-neutral-700"
-          }`}
+          className="px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer"
+          style={{
+            background: tab === "users" ? "var(--color-accent)" : "var(--color-surface-raised)",
+            color: tab === "users" ? "#060010" : "var(--color-text-secondary)",
+            border: tab === "users" ? "none" : "1px solid var(--color-border-subtle)",
+          }}
         >
           Users ({users.length})
         </button>
         <button
           onClick={() => setTab("notes")}
-          className={`px-4 py-2 rounded-md transition-colors cursor-pointer ${
-            tab === "notes"
-              ? "bg-blue-600"
-              : "bg-neutral-800 hover:bg-neutral-700"
-          }`}
+          className="px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer"
+          style={{
+            background: tab === "notes" ? "var(--color-accent)" : "var(--color-surface-raised)",
+            color: tab === "notes" ? "#060010" : "var(--color-text-secondary)",
+            border: tab === "notes" ? "none" : "1px solid var(--color-border-subtle)",
+          }}
         >
           Notes ({notes.length})
         </button>
       </div>
 
       {error && (
-        <div className="bg-red-900 border border-red-400 text-red-300 px-4 py-3 rounded mb-4">
+        <div className="px-4 py-3 rounded-lg text-sm mb-4" style={{ background: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.2)", color: "#f87171" }}>
           {error}
         </div>
       )}
 
       {loading ? (
-        <p className="text-gray-400">Loading...</p>
+        <p style={{ color: "var(--color-text-muted)" }}>Loading...</p>
       ) : tab === "users" ? (
-        <div className="overflow-x-auto rounded-xl border border-neutral-800">
+        <div className="overflow-x-auto rounded-xl" style={{ border: "1px solid var(--color-border-subtle)" }}>
           <table className="w-full text-left">
-            <thead className="bg-neutral-900 text-gray-400 text-sm">
+            <thead style={{ background: "var(--color-surface-raised)" }}>
               <tr>
-                <th className="px-4 py-3">Name</th>
-                <th className="px-4 py-3">Email</th>
-                <th className="px-4 py-3">Role</th>
+                <th className="px-4 py-3 text-sm font-medium" style={{ color: "var(--color-text-muted)" }}>Name</th>
+                <th className="px-4 py-3 text-sm font-medium" style={{ color: "var(--color-text-muted)" }}>Email</th>
+                <th className="px-4 py-3 text-sm font-medium" style={{ color: "var(--color-text-muted)" }}>Role</th>
               </tr>
             </thead>
             <tbody>
               {users.map((u) => (
-                <tr key={u._id} className="border-t border-neutral-800">
+                <tr key={u._id} style={{ borderTop: "1px solid var(--color-border-subtle)" }}>
                   <td className="px-4 py-3">{u.name}</td>
                   <td className="px-4 py-3">{u.email}</td>
                   <td className="px-4 py-3">
                     <span
-                      className={`px-2 py-1 rounded text-xs ${
-                        u.role === "admin"
-                          ? "bg-purple-900 text-purple-300"
-                          : "bg-neutral-800 text-gray-300"
-                      }`}
+                      className="px-2 py-1 rounded text-xs font-medium"
+                      style={{
+                        background: u.role === "admin" ? "rgba(168, 130, 255, 0.15)" : "var(--color-surface-overlay)",
+                        color: u.role === "admin" ? "#a882ff" : "var(--color-text-secondary)",
+                      }}
                     >
                       {u.role}
                     </span>
@@ -103,7 +105,7 @@ const Admin = () => {
               ))}
               {users.length === 0 && (
                 <tr>
-                  <td colSpan={3} className="px-4 py-6 text-center text-gray-500">
+                  <td colSpan={3} className="px-4 py-6 text-center text-sm" style={{ color: "var(--color-text-muted)" }}>
                     No users found.
                   </td>
                 </tr>
@@ -112,23 +114,23 @@ const Admin = () => {
           </table>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-neutral-800">
+        <div className="overflow-x-auto rounded-xl" style={{ border: "1px solid var(--color-border-subtle)" }}>
           <table className="w-full text-left">
-            <thead className="bg-neutral-900 text-gray-400 text-sm">
+            <thead style={{ background: "var(--color-surface-raised)" }}>
               <tr>
-                <th className="px-4 py-3">Title</th>
-                <th className="px-4 py-3">Author</th>
-                <th className="px-4 py-3">Created</th>
+                <th className="px-4 py-3 text-sm font-medium" style={{ color: "var(--color-text-muted)" }}>Title</th>
+                <th className="px-4 py-3 text-sm font-medium" style={{ color: "var(--color-text-muted)" }}>Author</th>
+                <th className="px-4 py-3 text-sm font-medium" style={{ color: "var(--color-text-muted)" }}>Created</th>
               </tr>
             </thead>
             <tbody>
               {notes.map((n) => (
-                <tr key={n._id} className="border-t border-neutral-800">
+                <tr key={n._id} style={{ borderTop: "1px solid var(--color-border-subtle)" }}>
                   <td className="px-4 py-3">{n.title}</td>
                   <td className="px-4 py-3">
                     {n.user?.email || "Unknown"}
                   </td>
-                  <td className="px-4 py-3 text-gray-400 text-sm">
+                  <td className="px-4 py-3 text-sm" style={{ color: "var(--color-text-muted)" }}>
                     {n.createdAt
                       ? new Date(n.createdAt).toLocaleString()
                       : ""}
@@ -137,7 +139,7 @@ const Admin = () => {
               ))}
               {notes.length === 0 && (
                 <tr>
-                  <td colSpan={3} className="px-4 py-6 text-center text-gray-500">
+                  <td colSpan={3} className="px-4 py-6 text-center text-sm" style={{ color: "var(--color-text-muted)" }}>
                     No notes found.
                   </td>
                 </tr>

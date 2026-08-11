@@ -5,9 +5,12 @@ import Footer from "./Footer.jsx";
 
 const Layout = () => {
   return (
-    <div className="min-h-screen flex flex-col bg-[#060010]">
+    <div className="min-h-screen flex flex-col">
+      <a href="#main-content" className="skip-link">
+        Skip to content
+      </a>
       <Navbar />
-      <main className="flex-1 container mx-auto px-4 py-8">
+      <main id="main-content" className="flex-1">
         <Outlet />
       </main>
       <Footer />

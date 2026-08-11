@@ -71,6 +71,11 @@ export const login = async (formData) => {
   return response;
 };
 
+export const googleLogin = async (data) => {
+  const response = await api.post("/auth/google", data);
+  return response;
+};
+
 export const signup = async (formData) => {
   const response = await api.post("/auth/signup", formData);
   return response;

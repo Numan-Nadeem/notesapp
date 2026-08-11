@@ -3,9 +3,13 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import Token from "../model/Token.js";
 import { badRequest, conflict, unauthorized } from "../utils/ApiError.js";
+import { OAuth2Client } from "google-auth-library";
 
 const ACCESS_JWT_SECRET = process.env.JWT_SECRET;
 const REFRESH_JWT_SECRET = process.env.JWT_REFRESH_SECRET;
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+
+const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 const REFRESH_TOKEN_DAYS = 7;
 
@@ -66,6 +70,9 @@ export const login = async ({ email, password }) => {
   const user = await User.findOne({ email });
   if (!user) throw unauthorized("Invalid email or password!");
 
+  // Google-only accounts have no password set.
+  if (!user.password) throw unauthorized("This account uses Google Sign-In. Please sign in with Google.");
+
   const isValid = await bcrypt.compare(password, user.password);
   if (!isValid) throw unauthorized("Invalid email or password!");
 
@@ -101,3 +108,51 @@ export const refresh = async ({ refreshToken }) => {
 
   return { accessToken, refreshToken: newRefresh };
 };
+
+export const googleAuth = async ({ credential }) => {
+  if (!credential) throw badRequest("Google credential is required");
+
+  // Verify the ID token with Google's servers.
+  let ticket;
+  try {
+    ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: GOOGLE_CLIENT_ID,
+    });
+  } catch {
+    throw unauthorized("Invalid Google credential");
+  }
+
+  const payload = ticket.getPayload();
+  const { sub: googleId, email, name, email_verified } = payload;
+
+  if (!email_verified) {
+    throw unauthorized("Google email is not verified");
+  }
+
+  // Try to find an existing user by googleId first, then by email.
+  let user = await User.findOne({ googleId });
+
+  if (!user) {
+    user = await User.findOne({ email });
+
+    if (user) {
+      // Link existing email-registered account to Google.
+      user.googleId = googleId;
+      await user.save();
+    } else {
+      // Create a brand-new Google user (no password needed).
+      user = new User({
+        name: name || email.split("@")[0],
+        email,
+        googleId,
+        role: "user",
+      });
+      await user.save();
+    }
+  }
+
+  const { accessToken, refreshToken } = await generateTokens(user);
+  return { user, accessToken, refreshToken };
+};
+
