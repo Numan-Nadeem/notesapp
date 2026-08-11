@@ -2,15 +2,28 @@ import fs from "fs";
 import path from "path";
 import multer from "multer";
 
-const uploadsDir = "uploads/images";
+// A serverless filesystem is read-only apart from /tmp, so staged uploads have
+// to land there before they're forwarded to Cloudinary.
+const uploadsDir = process.env.VERCEL
+  ? "/tmp/uploads/images"
+  : "uploads/images";
 
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
+// Created on first upload rather than at import time: an import-time mkdir
+// throws EROFS on a read-only filesystem and takes the whole app down with it.
+const ensureUploadsDir = () => {
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+};
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, uploadsDir);
+    try {
+      ensureUploadsDir();
+      cb(null, uploadsDir);
+    } catch (error) {
+      cb(error);
+    }
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
