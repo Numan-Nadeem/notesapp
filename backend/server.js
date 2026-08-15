@@ -18,7 +18,7 @@ app.use(
   cors({
     origin: config.clientOrigins,
     credentials: true,
-  })
+  }),
 );
 
 app.use(express.json());
@@ -58,8 +58,8 @@ if (!process.env.VERCEL) {
   connectDB()
     .then(() =>
       app.listen(config.port, () =>
-        console.log(`Server running at http://localhost:${config.port}/api`)
-      )
+        console.log(`Server running at http://localhost:${config.port}/api`),
+      ),
     )
     .catch((error) => {
       console.error("MongoDB connection error!", error);
