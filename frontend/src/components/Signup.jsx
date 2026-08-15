@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import { Link, useNavigate } from "react-router";
 import { useAuth } from "../context/AuthContext.jsx";
+import { useGoogleSignIn } from "../hooks/useGoogleSignIn.js";
 import { signup, googleLogin } from "../services/api.js";
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
@@ -47,7 +48,6 @@ const Signup = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [gsiReady, setGsiReady] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const { login: contextLogin } = useAuth();
@@ -78,53 +78,12 @@ const Signup = () => {
     [contextLogin, navigate]
   );
 
-  useEffect(() => {
-    if (!GOOGLE_CLIENT_ID) return;
-
-    const initializeGsi = () => {
-      if (!window.google?.accounts?.id) return;
-
-      window.google.accounts.id.initialize({
-        client_id: GOOGLE_CLIENT_ID,
-        callback: handleGoogleCallback,
-        ux_mode: "popup",
-      });
-
-      if (googleBtnContainerRef.current) {
-        window.google.accounts.id.renderButton(
-          googleBtnContainerRef.current,
-          {
-            type: "standard",
-            shape: "rectangular",
-            theme: "filled_black",
-            size: "large",
-            text: "signup_with",
-            width: googleBtnContainerRef.current.offsetWidth,
-          }
-        );
-      }
-
-      setGsiReady(true);
-    };
-
-    if (window.google?.accounts?.id) {
-      initializeGsi();
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = "https://accounts.google.com/gsi/client";
-    script.async = true;
-    script.defer = true;
-    script.onload = initializeGsi;
-    document.head.appendChild(script);
-
-    return () => {
-      if (window.google?.accounts?.id) {
-        window.google.accounts.id.cancel();
-      }
-    };
-  }, [handleGoogleCallback]);
+  const { ready: gsiReady, error: gsiError } = useGoogleSignIn({
+    clientId: GOOGLE_CLIENT_ID,
+    containerRef: googleBtnContainerRef,
+    onCredential: handleGoogleCallback,
+    text: "signup_with",
+  });
 
   const handleChange = (e) => {
     setFormData({
@@ -246,7 +205,10 @@ const Signup = () => {
               
               {/* Google Sign-Up */}
               <div className="mb-4">
-                <div className="relative w-full" style={{ minHeight: "44px" }}>
+                <div
+                  className="relative w-full rounded-xl focus-within:ring-2 focus-within:ring-[#c8ff00]/50"
+                  style={{ minHeight: "44px" }}
+                >
                   <div
                     className="w-full flex items-center justify-center gap-3 py-2.5 xl:py-3 px-4 rounded-xl text-sm xl:text-base font-medium transition-all duration-200"
                     style={{
@@ -258,14 +220,30 @@ const Signup = () => {
                     }}
                   >
                     <GoogleIcon />
-                    <span>{gsiReady ? "Sign up with Google" : "Loading..."}</span>
+                    <span>
+                      {gsiReady
+                        ? "Sign up with Google"
+                        : gsiError
+                        ? "Google sign-in unavailable"
+                        : "Loading..."}
+                    </span>
                   </div>
+                  {/* The real GSI button, stretched by the hook to cover the
+                      visual one above. Ignores pointer events until it exists,
+                      so the disabled cursor is not swallowed. */}
                   <div
                     ref={googleBtnContainerRef}
                     className="absolute inset-0 overflow-hidden rounded-xl"
-                    style={{ opacity: 0 }}
+                    style={{
+                      opacity: 0,
+                      pointerEvents: gsiReady ? "auto" : "none",
+                    }}
                   />
                 </div>
+
+                {gsiError && (
+                  <p className="mt-2 text-xs text-red-400/80">{gsiError}</p>
+                )}
 
                 <div className="relative flex items-center justify-center my-3">
                   <div className="border-t w-full border-white/5" />
