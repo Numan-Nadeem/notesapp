@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback } from "react";
 import { Link, useNavigate } from "react-router";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useGoogleSignIn } from "../hooks/useGoogleSignIn.js";
@@ -52,7 +52,6 @@ const Signup = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const { login: contextLogin } = useAuth();
   const navigate = useNavigate();
-  const googleBtnContainerRef = useRef(null);
 
   const handleGoogleCallback = useCallback(
     async (response) => {
@@ -78,11 +77,9 @@ const Signup = () => {
     [contextLogin, navigate]
   );
 
-  const { ready: gsiReady, error: gsiError } = useGoogleSignIn({
+  const { ready: gsiReady, error: gsiError, prompt: gsiPrompt } = useGoogleSignIn({
     clientId: GOOGLE_CLIENT_ID,
-    containerRef: googleBtnContainerRef,
     onCredential: handleGoogleCallback,
-    text: "signup_with",
   });
 
   const handleChange = (e) => {
@@ -209,7 +206,10 @@ const Signup = () => {
                   className="relative w-full rounded-xl focus-within:ring-2 focus-within:ring-[#c8ff00]/50"
                   style={{ minHeight: "44px" }}
                 >
-                  <div
+                  <button
+                    type="button"
+                    onClick={gsiPrompt}
+                    disabled={!gsiReady}
                     className="w-full flex items-center justify-center gap-3 py-2.5 xl:py-3 px-4 rounded-xl text-sm xl:text-base font-medium transition-all duration-200"
                     style={{
                       background: "rgba(255,255,255,0.03)",
@@ -227,18 +227,7 @@ const Signup = () => {
                         ? "Google sign-in unavailable"
                         : "Loading..."}
                     </span>
-                  </div>
-                  {/* The real GSI button, stretched by the hook to cover the
-                      visual one above. Ignores pointer events until it exists,
-                      so the disabled cursor is not swallowed. */}
-                  <div
-                    ref={googleBtnContainerRef}
-                    className="absolute inset-0 overflow-hidden rounded-xl"
-                    style={{
-                      opacity: 0,
-                      pointerEvents: gsiReady ? "auto" : "none",
-                    }}
-                  />
+                  </button>
                 </div>
 
                 {gsiError && (

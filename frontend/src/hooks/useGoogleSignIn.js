@@ -2,11 +2,6 @@ import { useEffect, useRef, useState } from "react";
 
 const GSI_SRC = "https://accounts.google.com/gsi/client";
 
-// GSI clamps the button it renders to this range. Passing a larger width still
-// yields a 400px button, so a full-width container ends up only partly covered.
-const GSI_MIN_WIDTH = 200;
-const GSI_MAX_WIDTH = 400;
-
 let scriptPromise = null;
 let initializedClientId = null;
 
@@ -55,44 +50,22 @@ const ensureInitialized = (clientId) => {
 };
 
 /**
- * Stretch the rendered (invisible) GSI button so it covers its container
- * exactly. The real button is our only click target — any uncovered strip of
- * the visible button shows no pointer cursor and swallows clicks.
- * GSI's outer wrapper stretches to the container on its own, so the clamped
- * render width only shows up on the button element itself.
- */
-const coverContainer = (container) => {
-  const rendered = container.firstElementChild;
-  if (!rendered) return;
-
-  const target = rendered.querySelector('[role="button"]') ?? rendered;
-
-  // Measure untransformed so repeated calls stay idempotent.
-  target.style.transform = "none";
-  const outer = container.getBoundingClientRect();
-  const inner = target.getBoundingClientRect();
-  if (!inner.width || !inner.height) return;
-
-  target.style.transformOrigin = "top left";
-  target.style.transform =
-    `translate(${outer.left - inner.left}px, ${outer.top - inner.top}px) ` +
-    `scale(${outer.width / inner.width}, ${outer.height / inner.height})`;
-};
-
-/**
- * Renders a Google Identity Services button into `containerRef` and reports
- * when it is actually present. `onCredential` receives the GSI response and
- * may change identity freely — it is read through a ref.
+ * Loads the Google Identity Services SDK and initializes it so that
+ * `google.accounts.id.prompt()` is ready to be called.
  *
- * Returns `ready` only once a button exists in the container, so callers can
- * avoid advertising a control that cannot be clicked.
+ * Instead of rendering a hidden GSI button and stretching it over a custom
+ * button (which breaks intermittently when getBoundingClientRect returns 0×0
+ * during animations or background-tab rendering), this hook now simply reports
+ * `ready: true` once the SDK is initialized and exposes a `prompt()` function
+ * that callers wire to their own button's onClick.
+ *
+ * Returns `{ ready, error, prompt }`.
  */
 export const useGoogleSignIn = ({
   clientId,
-  containerRef,
+  // containerRef is accepted for backwards-compat but no longer used.
+  containerRef: _containerRef,
   onCredential,
-  text = "continue_with",
-  theme = "filled_black",
 }) => {
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
@@ -104,64 +77,21 @@ export const useGoogleSignIn = ({
   }, [onCredential]);
 
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
     if (!clientId) {
       setError("Google sign-in is not configured.");
       return;
     }
 
     let cancelled = false;
-    let observer = null;
-    let frame = 0;
 
     const handler = (response) => onCredentialRef.current?.(response);
     activeHandler = handler;
-
-    const render = () => {
-      if (cancelled || !window.google?.accounts?.id) return;
-
-      const width = Math.min(
-        Math.max(container.offsetWidth || GSI_MAX_WIDTH, GSI_MIN_WIDTH),
-        GSI_MAX_WIDTH
-      );
-
-      // Re-rendering into a populated container stacks buttons.
-      container.replaceChildren();
-      window.google.accounts.id.renderButton(container, {
-        type: "standard",
-        shape: "rectangular",
-        theme,
-        size: "large",
-        text,
-        width,
-      });
-
-      coverContainer(container);
-      setReady(container.childElementCount > 0);
-
-      // GSI inserts the button synchronously today; re-check next frame so a
-      // change on their side degrades to a late cover rather than a dead button.
-      frame = requestAnimationFrame(() => {
-        if (cancelled) return;
-        coverContainer(container);
-        setReady(container.childElementCount > 0);
-      });
-    };
 
     loadGsiScript()
       .then(() => {
         if (cancelled) return;
         ensureInitialized(clientId);
-        render();
-
-        if (typeof ResizeObserver !== "undefined") {
-          // Breakpoint changes resize the container; keep the click target
-          // aligned without re-rendering the button.
-          observer = new ResizeObserver(() => coverContainer(container));
-          observer.observe(container);
-        }
+        setReady(true);
       })
       .catch(() => {
         if (cancelled) return;
@@ -171,13 +101,49 @@ export const useGoogleSignIn = ({
 
     return () => {
       cancelled = true;
-      cancelAnimationFrame(frame);
-      observer?.disconnect();
       if (activeHandler === handler) activeHandler = null;
       window.google?.accounts?.id?.cancel();
-      container.replaceChildren();
     };
-  }, [clientId, containerRef, text, theme]);
+  }, [clientId]);
 
-  return { ready, error };
+  /**
+   * Triggers the Google One Tap / account-chooser popup.
+   * Wire this to your custom button's onClick handler.
+   */
+  const prompt = () => {
+    if (!ready || !window.google?.accounts?.id) return;
+    window.google.accounts.id.prompt((notification) => {
+      // If the prompt was suppressed (e.g. cooldown, user dismissed before),
+      // fall back to rendering a temporary button and programmatically clicking
+      // it. This handles the edge case where prompt() is throttled by Google.
+      if (
+        notification.isNotDisplayed() ||
+        notification.isSkippedMoment()
+      ) {
+        // Create a temporary off-screen container, render the real GSI button,
+        // and click it to force the popup flow.
+        const tmp = document.createElement("div");
+        tmp.style.cssText =
+          "position:fixed;top:-9999px;left:-9999px;width:400px;height:50px;";
+        document.body.appendChild(tmp);
+        window.google.accounts.id.renderButton(tmp, {
+          type: "standard",
+          size: "large",
+          width: 400,
+        });
+        // The rendered button lives inside an iframe; find and click it.
+        requestAnimationFrame(() => {
+          const btn =
+            tmp.querySelector('[role="button"]') ??
+            tmp.querySelector("div[tabindex]") ??
+            tmp.querySelector("iframe");
+          if (btn) btn.click();
+          // Clean up after a short delay to let the popup open.
+          setTimeout(() => tmp.remove(), 500);
+        });
+      }
+    });
+  };
+
+  return { ready, error, prompt };
 };
