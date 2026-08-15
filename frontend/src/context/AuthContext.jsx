@@ -1,4 +1,11 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { logout as apiLogout } from "../services/api.js";
 const AuthContext = createContext();
 
@@ -47,31 +54,37 @@ export const AuthProvider = ({ children }) => {
     return () => window.removeEventListener("auth-expired", handleAuthExpired);
   }, []);
 
-  const login = (userData) => {
+  const login = useCallback((userData) => {
     localStorage.setItem("userData", JSON.stringify(userData));
     setIsAuthenticated(true);
     setUser(userData);
-  };
+  }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       await apiLogout();
     } catch (error) {
       console.error("Logout error:", error);
     } finally {
+      // Without this GSI keeps the previous account selected, so the next
+      // Google sign-in can resolve silently instead of prompting.
+      window.google?.accounts?.id?.disableAutoSelect();
       localStorage.removeItem("userData");
       setIsAuthenticated(false);
       setUser(null);
     }
-  };
+  }, []);
 
-  const value = {
-    isAuthenticated,
-    user,
-    login,
-    logout,
-    loading,
-  };
+  const value = useMemo(
+    () => ({
+      isAuthenticated,
+      user,
+      login,
+      logout,
+      loading,
+    }),
+    [isAuthenticated, user, login, logout, loading]
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
