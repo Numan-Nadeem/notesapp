@@ -89,6 +89,22 @@ export const logout = async () => {
   }
 };
 
+// Verify the session server-side. The response interceptor skips refresh
+// attempts for /auth/ URLs, so handle an expired access token here: refresh
+// once and retry. `allowRefresh` is false when there is no cached profile to
+// restore, so anonymous visitors don't fire a pointless refresh request.
+export const getMe = async (allowRefresh = true) => {
+  try {
+    const response = await api.get("/auth/me");
+    return response.data;
+  } catch (error) {
+    if (error.response?.status !== 401 || !allowRefresh) throw error;
+    await api.post("/auth/refresh");
+    const response = await api.get("/auth/me");
+    return response.data;
+  }
+};
+
 export const getNotes = async () => {
   const response = await api.get("/notes");
   return response.data;

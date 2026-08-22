@@ -6,7 +6,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import { logout as apiLogout } from "../services/api.js";
+import { getMe, logout as apiLogout } from "../services/api.js";
 const AuthContext = createContext();
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -25,14 +25,31 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const checkAuth = async () => {
+      let cached = null;
       try {
-        const userData = localStorage.getItem("userData");
-        if (userData) {
-          setUser(JSON.parse(userData));
-          setIsAuthenticated(true);
-        }
-      } catch (error) {
-        console.log("Not authenticated", error);
+        cached = JSON.parse(localStorage.getItem("userData") || "null");
+      } catch {
+        cached = null;
+      }
+
+      // Optimistically show the cached profile so the UI doesn't flash, then
+      // let the server decide: cookies are the source of truth, not localStorage.
+      if (cached) {
+        setUser(cached);
+        setIsAuthenticated(true);
+      }
+
+      try {
+        const { user: verified } = await getMe(Boolean(cached));
+        localStorage.setItem("userData", JSON.stringify(verified));
+        setUser(verified);
+        setIsAuthenticated(true);
+      } catch {
+        // No valid session — drop any stale cached profile so ProtectedRoute
+        // redirects and role-gated UI doesn't trust client-side data.
+        localStorage.removeItem("userData");
+        setIsAuthenticated(false);
+        setUser(null);
       } finally {
         setLoading(false);
       }

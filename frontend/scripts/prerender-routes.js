@@ -6,33 +6,33 @@
 //   dist/signup.html        served at /signup by cleanUrls
 //   dist/signup/index.html  served at /signup as a directory index
 //
-// Keep ROUTES in sync with the routes declared in src/App.jsx. Only static
-// paths belong here; a route with a dynamic segment can't be prerendered.
+// Routes are parsed from src/App.jsx so this list can't drift from the router.
+// Only static paths can be prerendered; routes with dynamic segments are
+// skipped and fall back to the SPA rewrite.
 import fs from "node:fs";
 import path from "node:path";
 
-const ROUTES = [
-  "login",
-  "signup",
-  "pricing",
-  "about",
-  "faq",
-  "contact",
-  "notes",
-  "admin",
-];
-
 const dist = "dist";
 const indexPath = path.join(dist, "index.html");
+const appPath = path.join("src", "App.jsx");
 
 if (!fs.existsSync(indexPath)) {
   console.error(`prerender: ${indexPath} not found — did vite build run?`);
   process.exit(1);
 }
 
+const appSource = fs.readFileSync(appPath, "utf8");
+const routes = [
+  ...new Set(
+    [...appSource.matchAll(/\bpath="([^"]*)"/g)]
+      .map((m) => m[1].replace(/^\//, ""))
+      .filter((route) => route && !route.includes(":") && !route.includes("*"))
+  ),
+];
+
 const html = fs.readFileSync(indexPath, "utf8");
 
-for (const route of ROUTES) {
+for (const route of routes) {
   fs.writeFileSync(path.join(dist, `${route}.html`), html);
 
   const dir = path.join(dist, route);
@@ -41,5 +41,5 @@ for (const route of ROUTES) {
 }
 
 console.log(
-  `prerender: wrote ${ROUTES.length * 2} files for ${ROUTES.length} routes`
+  `prerender: wrote ${routes.length * 2} files for ${routes.length} routes (${routes.join(", ")})`
 );

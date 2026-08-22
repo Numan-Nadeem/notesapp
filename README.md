@@ -82,6 +82,8 @@ Admins can access the Admin dashboard (`/admin`) to view all users and notes.
 | ------ | ---------------- | ----------- | ------------------------------- |
 | POST   | `/auth/signup`   | public      | Create an account               |
 | POST   | `/auth/login`    | public      | Log in, sets cookies            |
+| POST   | `/auth/google`   | public      | Google Sign-In                  |
+| GET    | `/auth/me`       | cookie      | Current user (session check)    |
 | POST   | `/auth/refresh`  | cookie      | Rotate tokens                   |
 | POST   | `/auth/logout`   | cookie      | Log out, clears cookies         |
 | GET    | `/notes`         | user        | List own notes (admin: all)     |

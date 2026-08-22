@@ -54,7 +54,7 @@ export const getNote = async (req, res, next) => {
     const note = await notesService.getNoteById(
       req.params.id,
       req.user.id,
-      req.user.role
+      req.user.role,
     );
     if (!note) throw notFoundError("Note not found");
     res.json(note);
@@ -72,7 +72,7 @@ export const createNote = async (req, res, next) => {
       title,
       content,
       req.user.id,
-      imageUrls
+      imageUrls,
     );
 
     res.status(201).json(newNote);
@@ -90,7 +90,7 @@ export const updateNote = async (req, res, next) => {
     const currentNote = await notesService.getNoteById(
       id,
       req.user.id,
-      req.user.role
+      req.user.role,
     );
     if (!currentNote) throw notFoundError("Note not found");
 
@@ -104,11 +104,11 @@ export const updateNote = async (req, res, next) => {
     }
 
     const keptImages = currentNote.images.filter((img) =>
-      keptImageUrls.includes(img.url)
+      keptImageUrls.includes(img.url),
     );
 
     const imagesToDelete = currentNote.images.filter(
-      (img) => !keptImageUrls.includes(img.url)
+      (img) => !keptImageUrls.includes(img.url),
     );
 
     for (const image of imagesToDelete) {
@@ -118,7 +118,7 @@ export const updateNote = async (req, res, next) => {
         } catch (err) {
           console.error(
             `❌ Failed to delete image ${image.public_id}:`,
-            err.message
+            err.message,
           );
         }
       }
@@ -136,7 +136,7 @@ export const updateNote = async (req, res, next) => {
       id,
       req.user.id,
       req.user.role,
-      updateData
+      updateData,
     );
     if (!updatedNote) throw notFoundError("Note not found");
 

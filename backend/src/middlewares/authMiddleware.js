@@ -1,9 +1,5 @@
 import jwt from "jsonwebtoken";
-import { configDotenv } from "dotenv";
-
-configDotenv();
-
-const JWT_SECRET = process.env.JWT_SECRET;
+import { config } from "../config/env.js";
 
 export const authMiddleware = (req, res, next) => {
   const token = req.cookies.accessToken;
@@ -13,7 +9,7 @@ export const authMiddleware = (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, config.jwtSecret);
     req.user = decoded;
     next();
   } catch (error) {

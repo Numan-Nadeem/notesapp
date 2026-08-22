@@ -4,12 +4,9 @@ import bcrypt from "bcrypt";
 import Token from "../model/Token.js";
 import { badRequest, conflict, unauthorized } from "../utils/ApiError.js";
 import { OAuth2Client } from "google-auth-library";
+import { config } from "../config/env.js";
 
-const ACCESS_JWT_SECRET = process.env.JWT_SECRET;
-const REFRESH_JWT_SECRET = process.env.JWT_REFRESH_SECRET;
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
-
-const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
+const googleClient = new OAuth2Client(config.googleClientId);
 
 const REFRESH_TOKEN_DAYS = 7;
 
@@ -20,12 +17,12 @@ const generateTokens = async (user) => {
       email: user.email,
       role: user.role,
     },
-    ACCESS_JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRY || "15m" }
+    config.jwtSecret,
+    { expiresIn: config.jwtExpiry },
   );
 
-  const refreshToken = jwt.sign({ id: user._id }, REFRESH_JWT_SECRET, {
-    expiresIn: process.env.JWT_REFRESH_EXPIRY || "7d",
+  const refreshToken = jwt.sign({ id: user._id }, config.jwtRefreshSecret, {
+    expiresIn: config.jwtRefreshExpiry,
   });
 
   const expiryDate = new Date();
@@ -71,7 +68,10 @@ export const login = async ({ email, password }) => {
   if (!user) throw unauthorized("Invalid email or password!");
 
   // Google-only accounts have no password set.
-  if (!user.password) throw unauthorized("This account uses Google Sign-In. Please sign in with Google.");
+  if (!user.password)
+    throw unauthorized(
+      "This account uses Google Sign-In. Please sign in with Google.",
+    );
 
   const isValid = await bcrypt.compare(password, user.password);
   if (!isValid) throw unauthorized("Invalid email or password!");
@@ -88,7 +88,7 @@ export const refresh = async ({ refreshToken }) => {
 
   let decoded;
   try {
-    decoded = jwt.verify(refreshToken, REFRESH_JWT_SECRET);
+    decoded = jwt.verify(refreshToken, config.jwtRefreshSecret);
   } catch {
     // Clean up the unusable token record.
     await Token.deleteOne({ token: refreshToken });
@@ -117,7 +117,7 @@ export const googleAuth = async ({ credential }) => {
   try {
     ticket = await googleClient.verifyIdToken({
       idToken: credential,
-      audience: GOOGLE_CLIENT_ID,
+      audience: config.googleClientId,
     });
   } catch {
     throw unauthorized("Invalid Google credential");
@@ -155,4 +155,3 @@ export const googleAuth = async ({ credential }) => {
   const { accessToken, refreshToken } = await generateTokens(user);
   return { user, accessToken, refreshToken };
 };
-

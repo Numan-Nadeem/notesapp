@@ -53,7 +53,10 @@ test("validateSignup rejects a short password", () => {
 });
 
 test("validateLogin requires email and password", () => {
-  assert.equal(run(validateLogin, { email: "a@b.co", password: "x" }), undefined);
+  assert.equal(
+    run(validateLogin, { email: "a@b.co", password: "x" }),
+    undefined,
+  );
   assert.equal(run(validateLogin, { email: "a@b.co" }).statusCode, 400);
   assert.equal(run(validateLogin, {}).statusCode, 400);
 });
@@ -61,5 +64,8 @@ test("validateLogin requires email and password", () => {
 test("validateNote requires title and content", () => {
   assert.equal(run(validateNote, { title: "T", content: "C" }), undefined);
   assert.equal(run(validateNote, { title: "T" }).statusCode, 400);
-  assert.equal(run(validateNote, { title: "  ", content: "C" }).statusCode, 400);
+  assert.equal(
+    run(validateNote, { title: "  ", content: "C" }).statusCode,
+    400,
+  );
 });

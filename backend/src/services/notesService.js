@@ -74,7 +74,7 @@ export const deleteNote = async (id, user, role) => {
         } catch (err) {
           console.error(
             `❌ Failed to delete image ${image.public_id}:`,
-            err.message
+            err.message,
           );
         }
       }

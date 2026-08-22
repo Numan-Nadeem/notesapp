@@ -17,7 +17,7 @@ export const validateEnv = () => {
   const missing = REQUIRED_ENV.filter((key) => !process.env[key]);
   if (missing.length > 0) {
     throw new Error(
-      `Missing required environment variables: ${missing.join(", ")}`
+      `Missing required environment variables: ${missing.join(", ")}`,
     );
   }
 };
@@ -33,4 +33,9 @@ export const config = {
   nodeEnv: process.env.NODE_ENV || "development",
   // Comma-separated list of allowed frontend origins (dev: 5173, preview: 4173).
   clientOrigins: parseOrigins(process.env.CLIENT_ORIGIN),
+  jwtSecret: process.env.JWT_SECRET,
+  jwtRefreshSecret: process.env.JWT_REFRESH_SECRET,
+  jwtExpiry: process.env.JWT_EXPIRY || "15m",
+  jwtRefreshExpiry: process.env.JWT_REFRESH_EXPIRY || "7d",
+  googleClientId: process.env.GOOGLE_CLIENT_ID,
 };

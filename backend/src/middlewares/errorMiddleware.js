@@ -34,7 +34,8 @@ export const errorHandler = (err, req, res, next) => {
 
   // If a controller already set a non-200 status, respect it; otherwise 500.
   if (!statusCode) {
-    statusCode = res.statusCode && res.statusCode !== 200 ? res.statusCode : 500;
+    statusCode =
+      res.statusCode && res.statusCode !== 200 ? res.statusCode : 500;
   }
 
   res.status(statusCode).json({

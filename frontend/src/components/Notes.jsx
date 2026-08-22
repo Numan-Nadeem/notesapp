@@ -1,11 +1,13 @@
 import React, { Suspense, useEffect, useMemo, useState } from "react";
 import SpotlightCard from "./SpotlightCard";
+import NoteViewModal from "./NoteViewModal";
 import {
   createNote,
   deleteNote,
   getNotes,
   updateNote,
 } from "../services/api.js";
+import formatDate from "../utils/formatDate.js";
 import {
   FiEdit2,
   FiPaperclip,
@@ -19,29 +21,6 @@ import {
 } from "react-icons/fi";
 
 const LazyImage = React.lazy(() => import("./LazyImage.jsx"));
-
-const formatDate = (dateString) => {
-  if (!dateString) return "";
-  const date = new Date(dateString);
-  const now = new Date();
-  const diff = now - date;
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-
-  if (days === 0) {
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    if (hours === 0) {
-      const mins = Math.floor(diff / (1000 * 60));
-      return mins <= 1 ? "Just now" : `${mins}m ago`;
-    }
-    return `${hours}h ago`;
-  }
-  if (days === 1) return "Yesterday";
-  if (days < 7) return `${days}d ago`;
-  return date.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-  });
-};
 
 const Notes = () => {
   const [notes, setNotes] = useState([]);
@@ -58,6 +37,22 @@ const Notes = () => {
   const [optionsNoteId, setOptionsNoteId] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
+  const [viewingNote, setViewingNote] = useState(null);
+  const [isViewClosing, setIsViewClosing] = useState(false);
+
+  const openNoteView = (note) => {
+    setIsViewClosing(false);
+    setViewingNote(note);
+    setOptionsNoteId(null);
+  };
+
+  const closeNoteView = () => {
+    setIsViewClosing(true);
+    setTimeout(() => {
+      setViewingNote(null);
+      setIsViewClosing(false);
+    }, 200);
+  };
 
   const handleAddNote = async (e) => {
     e.preventDefault();
@@ -131,6 +126,16 @@ const Notes = () => {
     setUpdateNoteId(noteId);
     setNewNote({ title, content, image: images.map((image) => image.url) });
     setShowModal(true);
+  };
+
+  const handleViewEdit = (note) => {
+    setViewingNote(null);
+    handleEditClick(note._id, note.title, note.content, note.images || []);
+  };
+
+  const handleViewDelete = (noteId) => {
+    handleDeleteNote(noteId);
+    closeNoteView();
   };
 
   const openModal = () => {
@@ -430,6 +435,17 @@ const Notes = () => {
         </div>
       )}
 
+      {/* Note view modal — opened by clicking a card */}
+      {viewingNote && (
+        <NoteViewModal
+          note={viewingNote}
+          isClosing={isViewClosing}
+          onClose={closeNoteView}
+          onEdit={() => handleViewEdit(viewingNote)}
+          onDelete={() => handleViewDelete(viewingNote._id)}
+        />
+      )}
+
       {/* Notes grid */}
       {loading ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -525,7 +541,9 @@ const Notes = () => {
           {filteredNotes.map((note) => (
             <div
               key={note._id}
-              className="relative group"
+              className="relative group cursor-pointer"
+              title="Click to view note"
+              onClick={() => openNoteView(note)}
               onMouseEnter={() => setHoveredNoteId(note._id)}
               onMouseLeave={() => {
                 setHoveredNoteId(null);
@@ -580,6 +598,7 @@ const Notes = () => {
                           background: "var(--color-surface-overlay)",
                           border: "1px solid var(--color-border-default)",
                         }}
+                        onClick={(e) => e.stopPropagation()}
                       >
                         <button
                           className="w-7 h-7 flex items-center justify-center rounded-md cursor-pointer transition-colors duration-200 hover:bg-white/5"
